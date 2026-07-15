@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Poplist</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-1:#eef2f8;
+    --bg-2:#e2e8f4;
+    --ink:#2b3145;
+    --ink-soft:#6b7288;
+    --ink-faint:#9aa0b4;
+    --card:#ffffff;
+    --line:#dfe4f0;
+    --danger:#d06a72;
+    --ok:#4fa88a;
+    /* per-tab tints */
+    --work:#5b8def;
+    --home:#5aa87c;
+    --followup:#e0a23c;
+    --buy:#a07bd4;
+    --accent:var(--work);
+    --accent-soft:rgba(91,141,239,.12);
+    font-size:16px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;height:100%;}
+  body{
+    font-family:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
+    color:var(--ink);
+    background:
+      radial-gradient(120% 80% at 15% -10%, #ffffff 0%, rgba(255,255,255,0) 55%),
+      radial-gradient(120% 90% at 100% 0%, var(--accent-soft) 0%, rgba(255,255,255,0) 45%),
+      linear-gradient(160deg,var(--bg-1),var(--bg-2));
+    background-attachment:fixed;
+    min-height:100%;
+    transition:--accent .4s;
+  }
+  .wrap{
+    max-width:640px;margin:0 auto;padding:22px 16px 120px;
+    min-height:100%;
+  }
+  /* Header */
+  header{margin-bottom:18px;}
+  .brand{
+    font-family:"Nunito",system-ui,sans-serif;
+    font-weight:800;font-size:1.9rem;letter-spacing:-.02em;
+    display:flex;align-items:center;gap:10px;line-height:1;
+  }
+  .brand .dot{
+    width:16px;height:16px;border-radius:50%;
+    background:radial-gradient(circle at 32% 30%,#fff 0%,var(--accent) 60%,color-mix(in srgb,var(--accent) 60%,#000) 100%);
+    box-shadow:0 0 0 4px var(--accent-soft), 0 4px 10px rgba(0,0,0,.12);
+    flex:none;
+  }
+  .tagline{color:var(--ink-soft);font-size:.9rem;margin:6px 0 0 26px;}
+  .today{color:var(--ink-faint);font-size:.82rem;margin:2px 0 0 26px;letter-spacing:.01em;}
+  /* Notices */
+  .notice{
+    display:flex;gap:10px;align-items:flex-start;
+    border-radius:14px;padding:12px 14px;margin:0 0 14px;
+    font-size:.86rem;line-height:1.4;
+  }
+  .notice b{font-family:"Nunito",sans-serif;font-weight:800;display:block;margin-bottom:2px;}
+  .notice.bad{background:rgba(208,106,114,.1);border:1px solid rgba(208,106,114,.35);color:#8a3b42;}
+  .notice.good{background:rgba(79,168,138,.11);border:1px solid rgba(79,168,138,.35);color:#2f6b57;}
+  .notice .x{
+    margin-left:auto;background:none;border:none;cursor:pointer;color:inherit;
+    opacity:.55;font-size:1.1rem;line-height:1;padding:2px 4px;
+  }
+  .notice .x:hover{opacity:1;}
+  /* Tabs */
+  .tabs{
+    display:flex;gap:8px;overflow-x:auto;padding:4px 2px 10px;
+    scrollbar-width:none;-ms-overflow-style:none;margin:0 -2px 6px;
+  }
+  .tabs::-webkit-scrollbar{display:none;}
+  .tab{
+    flex:0 0 auto;border:1px solid var(--line);background:rgba(255,255,255,.6);
+    color:var(--ink-soft);font-family:"Nunito",sans-serif;font-weight:700;
+    font-size:.9rem;padding:9px 15px;border-radius:999px;cursor:pointer;
+    display:flex;align-items:center;gap:8px;white-space:nowrap;
+    min-height:42px;transition:background .18s,color .18s,border-color .18s,transform .1s;
+  }
+  .tab:hover{background:#fff;}
+  .tab:active{transform:scale(.97);}
+  .tab .tick{width:9px;height:9px;border-radius:50%;background:var(--tab-c);opacity:.55;}
+  .tab.on{background:#fff;color:var(--ink);border-color:transparent;
+    box-shadow:0 4px 14px rgba(40,50,80,.1), inset 0 0 0 1.5px var(--tab-c);}
+  .tab.on .tick{opacity:1;}
+  .tab .cnt{font-size:.78rem;color:var(--ink-faint);font-weight:700;min-width:14px;text-align:center;}
+  .tab.on .cnt{color:var(--tab-c);}
+  /* Add row */
+  .add{
+    display:flex;gap:8px;margin:4px 0 18px;
+  }
+  .add input{
+    flex:1;min-width:0;border:1px solid var(--line);background:#fff;border-radius:14px;
+    padding:14px 16px;font-size:1rem;font-family:inherit;color:var(--ink);
+    min-height:50px;box-shadow:0 2px 8px rgba(40,50,80,.04);outline:none;
+    transition:border-color .18s,box-shadow .18s;
+  }
+  .add input::placeholder{color:var(--ink-faint);}
+  .add input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);}
+  .add button{
+    flex:none;border:none;background:var(--accent);color:#fff;border-radius:14px;
+    padding:0 18px;font-family:"Nunito",sans-serif;font-weight:800;font-size:1rem;
+    cursor:pointer;min-height:50px;transition:transform .1s,filter .18s;
+  }
+  .add button:hover{filter:brightness(1.05);}
+  .add button:active{transform:scale(.96);}
+  /* List */
+  .list{display:flex;flex-direction:column;gap:12px;position:relative;}
+  .bubble{
+    position:relative;display:flex;align-items:stretch;gap:2px;
+    background:linear-gradient(145deg,#ffffff 0%,#fbfcff 100%);
+    border:1px solid var(--line);border-radius:20px;
+    box-shadow:0 4px 16px rgba(45,55,85,.07);
+    overflow:hidden;will-change:transform;
+    transition:box-shadow .2s,transform .18s ease;
+  }
+  .bubble::before{
+    /* soap-bubble sheen highlight */
+    content:"";position:absolute;top:-40%;left:-10%;width:60%;height:120%;
+    background:radial-gradient(circle at 30% 30%,rgba(255,255,255,.9),rgba(255,255,255,0) 60%);
+    pointer-events:none;
+  }
+  .bubble::after{
+    /* faint tab-tinted iridescence at the tail */
+    content:"";position:absolute;right:-30px;bottom:-30px;width:120px;height:120px;
+    background:radial-gradient(circle,var(--tab-c) 0%,rgba(255,255,255,0) 70%);
+    opacity:.10;pointer-events:none;
+  }
+  .bubble.dragging{
+    box-shadow:0 16px 34px rgba(45,55,85,.22);z-index:20;transition:none;
+    border-color:var(--tab-c);
+  }
+  .rank{
+    flex:none;width:38px;display:flex;align-items:center;justify-content:center;
+    font-family:"Nunito",sans-serif;font-weight:800;font-size:.95rem;
+    color:var(--tab-c);opacity:.85;position:relative;z-index:1;
+  }
+  .body{
+    flex:1;min-width:0;padding:15px 6px 15px 0;font-size:1rem;line-height:1.35;
+    color:var(--ink);word-break:break-word;position:relative;z-index:1;
+    display:flex;align-items:center;
+  }
+  .handle{
+    flex:none;width:42px;display:flex;align-items:center;justify-content:center;
+    cursor:grab;touch-action:none;color:var(--ink-faint);position:relative;z-index:1;
+    align-self:stretch;
+  }
+  .handle:active{cursor:grabbing;}
+  .handle svg{width:18px;height:18px;}
+  .pop{
+    flex:none;width:52px;align-self:stretch;border:none;background:transparent;
+    cursor:pointer;display:flex;align-items:center;justify-content:center;
+    position:relative;z-index:1;color:var(--ink-faint);
+    transition:color .18s,background .18s;
+  }
+  .pop:hover{color:var(--ok);background:rgba(79,168,138,.08);}
+  .pop .ring{
+    width:24px;height:24px;border-radius:50%;border:2px solid currentColor;
+    display:flex;align-items:center;justify-content:center;transition:transform .1s;
+  }
+  .pop:active .ring{transform:scale(.85);}
+  .bubble.popping{animation:pop .42s cubic-bezier(.4,0,.2,1) forwards;}
+  @keyframes pop{
+    0%{transform:scale(1);opacity:1;}
+    35%{transform:scale(1.06);}
+    100%{transform:scale(.4);opacity:0;height:0;margin-top:-12px;}
+  }
+  .spark{
+    position:absolute;width:8px;height:8px;border-radius:50%;pointer-events:none;
+    z-index:30;opacity:.9;
+  }
+  @keyframes fly{to{transform:translate(var(--dx),var(--dy)) scale(0);opacity:0;}}
+  /* Empty state */
+  .empty{
+    text-align:center;padding:46px 20px;color:var(--ink-soft);
+  }
+  .empty .big{
+    font-family:"Nunito",sans-serif;font-weight:800;font-size:1.15rem;color:var(--ink);margin-bottom:6px;
+  }
+  .empty .em{font-size:2rem;margin-bottom:10px;opacity:.5;}
+  /* Footer actions */
+  .foot{
+    position:fixed;left:0;right:0;bottom:0;
+    background:linear-gradient(to top,var(--bg-2) 60%,rgba(226,232,244,0));
+    padding:14px 16px calc(16px + env(safe-area-inset-bottom));
+  }
+  .foot-inner{max-width:640px;margin:0 auto;display:flex;gap:10px;}
+  .btn{
+    border:none;border-radius:14px;font-family:"Nunito",sans-serif;font-weight:800;
+    font-size:.95rem;cursor:pointer;min-height:50px;padding:0 18px;
+    display:flex;align-items:center;justify-content:center;gap:8px;transition:transform .1s,filter .18s,background .18s;
+  }
+  .btn:active{transform:scale(.97);}
+  .btn-day{flex:1;background:var(--accent);color:#fff;box-shadow:0 6px 18px var(--accent-soft);}
+  .btn-day:hover{filter:brightness(1.05);}
+  .btn-log{flex:none;background:#fff;color:var(--ink-soft);border:1px solid var(--line);padding:0 14px;}
+  .btn-icon{flex:none;width:46px;padding:0;font-size:1.15rem;}
+  .btn-log:hover{color:var(--ink);}
+  .btn-log .badge{
+    background:var(--accent-soft);color:var(--accent);border-radius:999px;
+    font-size:.72rem;padding:2px 7px;font-weight:800;
+  }
+  /* Overlay (review + log) */
+  .scrim{
+    position:fixed;inset:0;background:rgba(30,36,54,.42);backdrop-filter:blur(3px);
+    display:none;align-items:center;justify-content:center;padding:18px;z-index:100;
+  }
+  .scrim.show{display:flex;}
+  .sheet{
+    background:#fff;border-radius:24px;max-width:460px;width:100%;
+    max-height:86vh;overflow:hidden;display:flex;flex-direction:column;
+    box-shadow:0 30px 70px rgba(20,26,44,.4);
+    animation:rise .3s cubic-bezier(.2,.8,.2,1);
+  }
+  @keyframes rise{from{transform:translateY(24px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+  .sheet-head{
+    padding:20px 22px 12px;
+  }
+  .sheet-head h2{
+    font-family:"Nunito",sans-serif;font-weight:800;font-size:1.25rem;margin:0;letter-spacing:-.01em;
+  }
+  .sheet-head p{margin:5px 0 0;color:var(--ink-soft);font-size:.88rem;}
+  .review-card{
+    margin:8px 22px 4px;padding:20px 18px;border-radius:18px;
+    background:linear-gradient(145deg,#fff,#f7f9ff);border:1.5px solid var(--tab-c);
+    box-shadow:0 6px 20px rgba(45,55,85,.08);
+  }
+  .review-card .task{font-size:1.12rem;line-height:1.35;color:var(--ink);font-weight:500;}
+  .review-actions{display:flex;flex-direction:column;gap:9px;padding:14px 22px 8px;}
+  .ra{
+    border:1px solid var(--line);background:#fff;border-radius:13px;padding:13px 16px;
+    font-family:"Nunito",sans-serif;font-weight:700;font-size:.98rem;cursor:pointer;
+    text-align:left;display:flex;align-items:center;gap:12px;min-height:50px;
+    transition:transform .1s,border-color .18s,background .18s;color:var(--ink);
+  }
+  .ra:active{transform:scale(.98);}
+  .ra .ic{width:22px;height:22px;flex:none;display:flex;align-items:center;justify-content:center;}
+  .ra small{display:block;font-family:"Inter",sans-serif;font-weight:400;font-size:.78rem;color:var(--ink-faint);margin-top:1px;}
+  .ra.keep:hover{border-color:var(--ok);background:rgba(79,168,138,.06);}
+  .ra.keep .ic{color:var(--ok);}
+  .ra.drop:hover{border-color:var(--ink-faint);background:#f6f7fa;}
+  .ra.drop .ic{color:var(--ink-faint);}
+  .ra.deleg:hover{border-color:var(--followup);background:rgba(224,162,60,.07);}
+  .ra.deleg .ic{color:var(--followup);}
+  .review-progress{padding:6px 22px 18px;color:var(--ink-faint);font-size:.8rem;text-align:center;}
+  /* Log list */
+  .log-body{overflow-y:auto;padding:6px 22px 4px;}
+  .log-item{
+    padding:13px 0;border-bottom:1px solid var(--line);display:flex;gap:12px;align-items:flex-start;
+  }
+  .log-item:last-child{border-bottom:none;}
+  .log-item .lt{flex:1;font-size:.95rem;color:var(--ink);line-height:1.3;}
+  .log-item .lm{font-size:.76rem;color:var(--ink-faint);margin-top:3px;}
+  .log-item .pill{
+    flex:none;font-size:.7rem;font-weight:700;font-family:"Nunito",sans-serif;
+    padding:3px 9px;border-radius:999px;background:var(--accent-soft);color:var(--accent);white-space:nowrap;
+  }
+  .sheet-foot{padding:12px 22px 20px;display:flex;gap:10px;}
+  .sheet-foot .btn{flex:1;}
+  .btn-ghost{background:#f4f6fa;color:var(--ink-soft);}
+  .btn-ghost:hover{background:#eceff5;color:var(--ink);}
+  .btn-solid{background:var(--accent);color:#fff;}
+  .log-empty{padding:34px 10px;text-align:center;color:var(--ink-soft);}
+  @media (max-width:420px){
+    .brand{font-size:1.7rem;}
+    .wrap{padding-top:16px;}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *{animation-duration:.001ms !important;transition-duration:.05ms !important;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand"><span class="dot"></span>Poplist</div>
+    <div class="tagline">Pop it when it's done.</div>
+    <div class="today" id="today"></div>
+  </header>
+
+  <div id="warn"></div>
+
+  <nav class="tabs" id="tabs"></nav>
+
+  <div class="add">
+    <input id="taskInput" type="text" placeholder="Add a task…" autocomplete="off" enterkeyhint="done">
+    <button id="addBtn">Add</button>
+  </div>
+
+  <div class="list" id="list"></div>
+</div>
+
+<div class="foot">
+  <div class="foot-inner">
+    <button class="btn btn-day" id="newDayBtn">Start a new day</button>
+    <button class="btn btn-log" id="logBtn">Delegated <span class="badge" id="logCount">0</span></button>
+    <button class="btn btn-log btn-icon" id="exportBtn" title="Save a backup file">⭳</button>
+    <input type="file" id="importFile" accept="application/json" style="display:none">
+    <button class="btn btn-log btn-icon" id="importBtn" title="Load a backup file">⭱</button>
+  </div>
+</div>
+
+<!-- Review overlay -->
+<div class="scrim" id="reviewScrim">
+  <div class="sheet" id="reviewSheet"></div>
+</div>
+
+<!-- Log overlay -->
+<div class="scrim" id="logScrim">
+  <div class="sheet">
+    <div class="sheet-head">
+      <h2>Delegated log</h2>
+      <p>Tasks you handed off, kept for the record.</p>
+    </div>
+    <div class="log-body" id="logBody"></div>
+    <div class="sheet-foot">
+      <button class="btn btn-ghost" id="logClear">Clear log</button>
+      <button class="btn btn-solid" id="logClose">Done</button>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+(function(){
+  const TABS = [
+    {key:"followup", label:"Customer Follow-up",color:"#e0a23c"},
+    {key:"work",     label:"Work",             color:"#5b8def"},
+    {key:"home",     label:"Home",             color:"#5aa87c"},
+    {key:"buy",      label:"Purchases",        color:"#a07bd4"}
+  ];
+  const TAB_KEYS = TABS.map(t=>t.key);
+  const STORE_KEY = "poplist:v1";
+  const BACKUP_KEY = "poplist:v1:backup";
+  const DAY_START_HOUR = 5; // a "day" rolls over at 5am, not midnight
+
+  let state = {
+    tabs:{followup:[],work:[],home:[],buy:[]},
+    delegated:[],
+    active:"followup"
+  };
+  let storageOK = null;   // null = unknown, true/false once verified
+  let lastSnapshot = null; // pre-review state, for undo
+
+  /* ---------- storage (safe wrapper, in-memory fallback) ---------- */
+  /* ---------- storage ---------- */
+  // localStorage is the primary store — it's a standard, always-available
+  // browser feature, so it works the same whether this is opened as a
+  // hosted page or inside Claude. window.storage (Claude's artifact bridge)
+  // is tried too, when present, as a bonus second copy.
+  const mem = {};
+  function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return undefined; } }
+  function lsSet(k,v){ try{ localStorage.setItem(k,v); return true; }catch(e){ return false; } }
+
+  const store = {
+    async get(k){
+      const local=lsGet(k);
+      if(local!==null && local!==undefined) return local;
+      if(window.storage&&window.storage.get){
+        try{
+          const r=await window.storage.get(k,false);
+          if(r&&typeof r.value!=="undefined") return r.value;
+        }catch(e){}
+        try{
+          const r=await window.storage.get(k);
+          if(r&&typeof r.value!=="undefined") return r.value;
+        }catch(e){}
+      }
+      return (k in mem)?mem[k]:null;
+    },
+    async set(k,v){
+      mem[k]=v;
+      const localOK=lsSet(k,v);
+      let bridgeOK=false;
+      if(window.storage&&window.storage.set){
+        try{ bridgeOK=!!(await window.storage.set(k,v,false)); }catch(e){}
+        if(!bridgeOK){ try{ bridgeOK=!!(await window.storage.set(k,v)); }catch(e){} }
+      }
+      return localOK||bridgeOK;
+    }
+  };
+
+  function waitForStorage(ms){
+    return new Promise(res=>{
+      const t0=Date.now();
+      (function poll(){
+        if(window.storage&&window.storage.set&&window.storage.get) return res(true);
+        if(Date.now()-t0>ms) return res(false);
+        setTimeout(poll,80);
+      })();
+    });
+  }
+
+  async function verifyStorage(){
+    const probe="poplist:probe", val="ok:"+Date.now();
+    if(lsSet(probe,val) && lsGet(probe)===val){ storageOK=true; return; }
+    // localStorage unavailable (rare: private mode with storage fully blocked) —
+    // fall back to checking Claude's bridge before giving up.
+    const present=await waitForStorage(2500);
+    if(!present){ storageOK=false; return; }
+    try{
+      await window.storage.set(probe,val,false);
+      const r=await window.storage.get(probe,false);
+      storageOK = (r&&r.value===val);
+    }catch(e){ storageOK=false; }
+  }
+
+  let saveTimer=null, saving=false;
+  function save(){
+    clearTimeout(saveTimer);
+    saveTimer=setTimeout(doSave,120);
+  }
+  async function doSave(){
+    if(saving) return;
+    saving=true;
+    const ok=await store.set(STORE_KEY, JSON.stringify(state));
+    saving=false;
+    if(ok && storageOK===false){ storageOK=true; renderWarn(); }      // recovered
+    else if(!ok && storageOK!==false){ storageOK=false; renderWarn(); } // just failed
+  }
+  // Flush synchronously-ish on the way out, so nothing typed is lost.
+  window.addEventListener("pagehide",()=>{ clearTimeout(saveTimer); doSave(); });
+  document.addEventListener("visibilitychange",()=>{
+    if(document.visibilityState==="hidden"){ clearTimeout(saveTimer); doSave(); }
+  });
+
+  function hydrate(p){
+    if(!p||!p.tabs) return false;
+    TAB_KEYS.forEach(k=>{ if(!Array.isArray(p.tabs[k])) p.tabs[k]=[]; });
+    // migrate any legacy key names
+    state.tabs=p.tabs;
+    state.delegated=Array.isArray(p.delegated)?p.delegated:[];
+    if(TAB_KEYS.includes(p.active)) state.active=p.active;
+    return true;
+  }
+  function isEmpty(s){ return TAB_KEYS.every(k=>!s.tabs[k].length); }
+
+  async function load(){
+    let loaded=false;
+    const raw=await store.get(STORE_KEY);
+    if(raw){ try{ loaded=hydrate(JSON.parse(raw)); }catch(e){} }
+    // If the main record is missing or came back empty, fall back to the backup
+    // rather than silently showing a blank board.
+    if(!loaded || isEmpty(state)){
+      const braw=await store.get(BACKUP_KEY);
+      if(braw){
+        try{
+          const b=JSON.parse(braw);
+          const probe={tabs:b.tabs||{},delegated:[],active:state.active};
+          TAB_KEYS.forEach(k=>{ if(!Array.isArray(probe.tabs[k])) probe.tabs[k]=[]; });
+          if(!isEmpty(probe)){ hydrate(b); recovered=true; }
+        }catch(e){}
+      }
+    }
+  }
+  let recovered=false;
+
+  // Rolling backup so a bad write can never be the only copy.
+  async function backup(){ await store.set(BACKUP_KEY, JSON.stringify(state)); }
+
+  /* ---------- helpers ---------- */
+  const $=s=>document.querySelector(s);
+  const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+  function tabColor(k){return (TABS.find(t=>t.key===k)||TABS[0]).color;}
+  function fmtDate(ts){
+    const d=new Date(ts);
+    return d.toLocaleDateString(undefined,{month:"short",day:"numeric"})+", "+
+           d.toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"});
+  }
+  function applyAccent(){
+    const c=tabColor(state.active);
+    document.documentElement.style.setProperty("--accent",c);
+    const soft=hexA(c,.13);
+    document.documentElement.style.setProperty("--accent-soft",soft);
+  }
+  function hexA(hex,a){
+    const n=parseInt(hex.slice(1),16);
+    return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`;
+  }
+
+  /* ---------- render ---------- */
+  const listEl=$("#list");
+  const tabsEl=$("#tabs");
+
+  function renderTabs(){
+    tabsEl.innerHTML="";
+    TABS.forEach(t=>{
+      const b=document.createElement("button");
+      b.className="tab"+(t.key===state.active?" on":"");
+      b.style.setProperty("--tab-c",t.color);
+      b.innerHTML=`<span class="tick"></span>${t.label}<span class="cnt">${state.tabs[t.key].length}</span>`;
+      b.onclick=()=>{ state.active=t.key; applyAccent(); renderTabs(); renderList(); save(); };
+      tabsEl.appendChild(b);
+    });
+  }
+
+  function renderList(){
+    const items=state.tabs[state.active];
+    listEl.innerHTML="";
+    if(!items.length){
+      const e=document.createElement("div");
+      e.className="empty";
+      e.innerHTML=`<div class="em">◌</div><div class="big">Nothing here yet</div><div>Add your first task above. It lands at the bottom — drag it up when it matters more.</div>`;
+      listEl.appendChild(e);
+      return;
+    }
+    items.forEach((it,i)=>{
+      const c=tabColor(state.active);
+      const el=document.createElement("div");
+      el.className="bubble";
+      el.dataset.id=it.id;
+      el.style.setProperty("--tab-c",c);
+      el.innerHTML=`
+        <div class="handle" aria-label="Drag to reorder" title="Drag to reorder">
+          <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>
+        </div>
+        <div class="rank">${i+1}</div>
+        <div class="body">${escapeHtml(it.text)}</div>
+        <button class="pop" aria-label="Complete and pop task"><span class="ring">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 6"/></svg>
+        </span></button>`;
+      el.querySelector(".pop").onclick=()=>popTask(it.id,el);
+      el.querySelector(".handle").addEventListener("pointerdown",e=>startDrag(e,el));
+      listEl.appendChild(el);
+    });
+  }
+  function escapeHtml(s){return s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+
+  /* ---------- add ---------- */
+  const input=$("#taskInput");
+  function addTask(){
+    const v=input.value.trim();
+    if(!v) return;
+    state.tabs[state.active].push({id:uid(),text:v,createdAt:Date.now()});
+    input.value="";
+    renderTabs(); renderList(); save();
+  }
+  $("#addBtn").onclick=addTask;
+  input.addEventListener("keydown",e=>{ if(e.key==="Enter") addTask(); });
+
+  /* ---------- pop / complete ---------- */
+  function popTask(id,el){
+    if(el.classList.contains("popping")) return;
+    burst(el);
+    el.classList.add("popping");
+    const done=()=>{
+      const arr=state.tabs[state.active];
+      const idx=arr.findIndex(t=>t.id===id);
+      if(idx>-1) arr.splice(idx,1);
+      renderTabs(); renderList(); save();
+    };
+    let called=false;
+    el.addEventListener("animationend",()=>{if(!called){called=true;done();}},{once:true});
+    setTimeout(()=>{if(!called){called=true;done();}},500);
+  }
+  function burst(el){
+    const r=el.getBoundingClientRect();
+    const cx=r.right-30, cy=r.top+r.height/2;
+    const c=tabColor(state.active);
+    const cols=[c,"#ffffff",hexA(c,.7)];
+    for(let i=0;i<9;i++){
+      const s=document.createElement("div");
+      s.className="spark";
+      const ang=(Math.PI*2*i)/9+Math.random()*0.5;
+      const dist=32+Math.random()*26;
+      s.style.left=cx+"px"; s.style.top=cy+"px";
+      s.style.background=cols[i%cols.length];
+      s.style.setProperty("--dx",Math.cos(ang)*dist+"px");
+      s.style.setProperty("--dy",Math.sin(ang)*dist+"px");
+      s.style.animation="fly .5s cubic-bezier(.2,.7,.3,1) forwards";
+      document.body.appendChild(s);
+      setTimeout(()=>s.remove(),560);
+    }
+  }
+
+  /* ---------- drag reorder (pointer events: mouse + touch) ---------- */
+  let drag=null;
+  const GAP=12;
+  function startDrag(e,el){
+    e.preventDefault();
+    const nodes=[...listEl.querySelectorAll(".bubble")];
+    const from=nodes.indexOf(el);
+    drag={
+      el,from,to:from,startY:e.clientY,
+      height:el.getBoundingClientRect().height+GAP,
+      nodes:nodes.map(n=>({el:n,mid:n.getBoundingClientRect().top+n.getBoundingClientRect().height/2}))
+    };
+    el.classList.add("dragging");
+    el.setPointerCapture(e.pointerId);
+    el.addEventListener("pointermove",onDragMove);
+    el.addEventListener("pointerup",endDrag);
+    el.addEventListener("pointercancel",endDrag);
+  }
+  function onDragMove(e){
+    if(!drag) return;
+    const dy=e.clientY-drag.startY;
+    drag.el.style.transform=`translateY(${dy}px) scale(1.02)`;
+    const center=drag.nodes[drag.from].mid+dy;
+    let to=0;
+    for(let i=0;i<drag.nodes.length;i++){
+      if(i===drag.from) continue;
+      if(center>drag.nodes[i].mid) to++;
+    }
+    drag.to=to;
+    drag.nodes.forEach((n,i)=>{
+      if(n.el===drag.el) return;
+      let shift=0;
+      if(drag.from<drag.to && i>drag.from && i<=drag.to) shift=-drag.height;
+      else if(drag.from>drag.to && i<drag.from && i>=drag.to) shift=drag.height;
+      n.el.style.transform=shift?`translateY(${shift}px)`:"";
+    });
+  }
+  function endDrag(e){
+    if(!drag) return;
+    const {el,from,to}=drag;
+    el.releasePointerCapture&&el.releasePointerCapture(e.pointerId);
+    el.removeEventListener("pointermove",onDragMove);
+    el.removeEventListener("pointerup",endDrag);
+    el.removeEventListener("pointercancel",endDrag);
+    drag.nodes.forEach(n=>n.el.style.transform="");
+    el.classList.remove("dragging");
+    drag=null;
+    if(to!==from){
+      const arr=state.tabs[state.active];
+      const [moved]=arr.splice(from,1);
+      arr.splice(to,0,moved);
+      renderList(); save();
+    }
+  }
+
+  /* ---------- New Day review ---------- */
+  const reviewScrim=$("#reviewScrim");
+  const reviewSheet=$("#reviewSheet");
+  let review=null;
+  $("#newDayBtn").onclick=()=>{
+    const items=state.tabs[state.active];
+    if(!items.length){ flashEmptyDay(); return; }
+    backup(); // keep a copy of the pre-review board
+    lastSnapshot={tab:state.active,items:items.slice(),delegated:state.delegated.slice()};
+    review={queue:items.slice(),idx:0,keep:[],dropped:0,delegated:0};
+    reviewScrim.classList.add("show");
+    renderReview();
+  };
+  function flashEmptyDay(){
+    reviewSheet.innerHTML=`
+      <div class="sheet-head"><h2>All clear</h2>
+      <p>This tab is already empty — nothing to review. Start adding tasks for the day.</p></div>
+      <div class="sheet-foot"><button class="btn btn-solid" id="fe">Got it</button></div>`;
+    reviewScrim.classList.add("show");
+    $("#fe").onclick=closeReview;
+  }
+  function renderReview(){
+    const tabLabel=(TABS.find(t=>t.key===state.active)||{}).label;
+    if(review.idx>=review.queue.length){
+      // apply
+      state.tabs[state.active]=review.keep;
+      renderTabs(); renderList(); renderLogCount(); save();
+      reviewSheet.innerHTML=`
+        <div class="sheet-head"><h2>${tabLabel} — fresh start</h2>
+        <p>Kept ${review.keep.length}, cleared ${review.dropped}, delegated ${review.delegated}. Have a good one.</p></div>
+        <div class="sheet-foot">
+          <button class="btn btn-ghost" id="rundo">Undo review</button>
+          <button class="btn btn-solid" id="rdone">Done</button>
+        </div>`;
+      $("#rdone").onclick=closeReview;
+      $("#rundo").onclick=undoReview;
+      review=null;
+      return;
+    }
+    const t=review.queue[review.idx];
+    reviewSheet.innerHTML=`
+      <div class="sheet-head">
+        <h2>New day · ${tabLabel}</h2>
+        <p>Go through each task and decide where it stands today.</p>
+      </div>
+      <div class="review-card" style="--tab-c:${tabColor(state.active)}">
+        <div class="task">${escapeHtml(t.text)}</div>
+      </div>
+      <div class="review-actions">
+        <button class="ra keep" data-a="keep"><span class="ic">✓</span><span>Keep<small>Stays on today's list</small></span></button>
+        <button class="ra drop" data-a="drop"><span class="ic">○</span><span>Not a priority<small>Remove it for good</small></span></button>
+        <button class="ra deleg" data-a="deleg"><span class="ic">➜</span><span>Delegated<small>Hand off — saved to the log</small></span></button>
+      </div>
+      <div class="review-progress">${review.idx+1} of ${review.queue.length}</div>`;
+    reviewSheet.querySelectorAll(".ra").forEach(b=>{
+      b.onclick=()=>decide(b.dataset.a);
+    });
+  }
+  function decide(action){
+    const t=review.queue[review.idx];
+    if(action==="keep") review.keep.push(t);
+    else if(action==="drop") review.dropped++;
+    else if(action==="deleg"){
+      review.delegated++;
+      state.delegated.unshift({id:uid(),text:t.text,tab:state.active,at:Date.now()});
+    }
+    review.idx++;
+    renderReview();
+  }
+  function undoReview(){
+    if(!lastSnapshot) return closeReview();
+    state.tabs[lastSnapshot.tab]=lastSnapshot.items.slice();
+    state.delegated=lastSnapshot.delegated.slice();
+    lastSnapshot=null;
+    renderTabs(); renderList(); renderLogCount(); save();
+    closeReview();
+  }
+  function closeReview(){ reviewScrim.classList.remove("show"); review=null; }
+  reviewScrim.onclick=e=>{ if(e.target===reviewScrim && !review) closeReview(); };
+
+  /* ---------- Delegated log ---------- */
+  const logScrim=$("#logScrim");
+  function renderLogCount(){ $("#logCount").textContent=state.delegated.length; }
+  $("#logBtn").onclick=()=>{
+    const body=$("#logBody");
+    if(!state.delegated.length){
+      body.innerHTML=`<div class="log-empty">Nothing delegated yet. When you hand a task off during a new-day review, it lands here.</div>`;
+    }else{
+      body.innerHTML=state.delegated.map(d=>{
+        const lab=(TABS.find(t=>t.key===d.tab)||{}).label||"";
+        return `<div class="log-item">
+          <div class="lt">${escapeHtml(d.text)}<div class="lm">${fmtDate(d.at)}</div></div>
+          <span class="pill" style="background:${hexA(tabColor(d.tab),.14)};color:${tabColor(d.tab)}">${lab}</span>
+        </div>`;
+      }).join("");
+    }
+    logScrim.classList.add("show");
+  };
+  $("#logClose").onclick=()=>logScrim.classList.remove("show");
+  $("#logClear").onclick=()=>{
+    if(!state.delegated.length){ logScrim.classList.remove("show"); return; }
+    state.delegated=[]; renderLogCount(); save();
+    $("#logBody").innerHTML=`<div class="log-empty">Log cleared.</div>`;
+  };
+  logScrim.onclick=e=>{ if(e.target===logScrim) logScrim.classList.remove("show"); };
+
+  /* ---------- export / import (manual cross-device transfer) ---------- */
+  $("#exportBtn").onclick=()=>{
+    const payload=JSON.stringify({tabs:state.tabs,delegated:state.delegated,exportedAt:Date.now()},null,2);
+    const blob=new Blob([payload],{type:"application/json"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");
+    const stamp=new Date().toISOString().slice(0,10);
+    a.href=url; a.download=`poplist-backup-${stamp}.json`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),2000);
+  };
+  $("#importBtn").onclick=()=>$("#importFile").click();
+  $("#importFile").addEventListener("change",e=>{
+    const file=e.target.files[0];
+    if(!file) return;
+    const reader=new FileReader();
+    reader.onload=()=>{
+      try{
+        const p=JSON.parse(reader.result);
+        if(!p||!p.tabs) throw new Error("bad file");
+        TAB_KEYS.forEach(k=>{ if(!Array.isArray(p.tabs[k])) p.tabs[k]=[]; });
+        state.tabs=p.tabs;
+        state.delegated=Array.isArray(p.delegated)?p.delegated:[];
+        renderTabs(); renderList(); renderLogCount(); save(); backup();
+        alert("Backup loaded.");
+      }catch(err){ alert("That file doesn't look like a Poplist backup."); }
+      e.target.value="";
+    };
+    reader.readAsText(file);
+  });
+
+  /* ---------- init ---------- */
+  // The working day runs 5am → 5am, so anything before 5am still reads as
+  // "yesterday" rather than flipping over on you at midnight.
+  function dayStamp(d){
+    const x=new Date(d.getTime());
+    if(x.getHours()<DAY_START_HOUR) x.setDate(x.getDate()-1);
+    return x;
+  }
+  function setToday(){
+    const d=dayStamp(new Date());
+    const label=d.toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric"});
+    const early=new Date().getHours()<DAY_START_HOUR;
+    $("#today").textContent = early ? label+" (still, until 5am)" : label;
+  }
+  setInterval(setToday,60000);
+
+  function renderWarn(){
+    const w=$("#warn");
+    let html="";
+    if(storageOK===false){
+      html+=`<div class="notice bad"><span>⚠︎</span><span><b>Saving is unavailable here</b>
+        This browser is blocking local storage (common in private/incognito mode), so your list
+        only lives in this tab and won't survive a reload. Try a normal browser tab, or opened inside Claude.</span></div>`;
+    }
+    if(recovered){
+      html+=`<div class="notice good"><span>↺</span><span><b>Restored from backup</b>
+        The main copy came back empty, so your last saved list was recovered.</span>
+        <button class="x" id="warnX">×</button></div>`;
+    }
+    w.innerHTML=html;
+    const x=$("#warnX");
+    if(x) x.onclick=()=>{ recovered=false; renderWarn(); };
+  }
+
+  (async function init(){
+    setToday();
+    await verifyStorage();
+    await load();
+    applyAccent();
+    renderTabs();
+    renderList();
+    renderLogCount();
+    renderWarn();
+    if(!isEmpty(state)) backup();
+  })();
+})();
+</script>
+</body>
+</html>

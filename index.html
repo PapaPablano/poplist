@@ -643,6 +643,11 @@
       el.querySelector(".gedit").onclick=()=>startEditGoal(g.id,el);
       el.querySelector(".gcur").onclick=e=>startEditCurrent(g.id,e.target);
       listEl.appendChild(el);
+      if(pace.remaining===0 && !g.celebrated){
+        g.celebrated=true;
+        burst(el);
+        save();
+      }
     });
   }
 

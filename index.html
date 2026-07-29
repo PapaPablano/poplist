@@ -888,7 +888,16 @@
   const reviewScrim=$("#reviewScrim");
   const reviewSheet=$("#reviewSheet");
   let review=null;
+  function flashGoalsInfo(){
+    reviewSheet.innerHTML=`
+      <div class="sheet-head"><h2>Goals reset monthly</h2>
+      <p>Goals aren't reviewed day-to-day — they reset automatically each month.</p></div>
+      <div class="sheet-foot"><button class="btn btn-solid" id="fg">Got it</button></div>`;
+    reviewScrim.classList.add("show");
+    $("#fg").onclick=closeReview;
+  }
   $("#newDayBtn").onclick=()=>{
+    if(state.active==="goals"){ flashGoalsInfo(); return; }
     const items=state.tabs[state.active];
     if(!items.length){ flashEmptyDay(); return; }
     backup(); // keep a copy of the pre-review board

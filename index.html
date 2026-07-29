@@ -752,6 +752,24 @@
       };
     });
   }
+
+  function checkGoalRollover(){
+    const key=GoalsLogic.periodKeyFor(dayStamp(new Date()));
+    let changed=false;
+    state.tabs.goals.forEach(g=>{
+      if(g.periodKey!==key){
+        g.current=0;
+        g.celebrated=false;
+        g.periodKey=key;
+        changed=true;
+      }
+    });
+    if(changed){
+      if(state.active==="goals") renderList();
+      save();
+    }
+  }
+
   $("#gearBtn").onclick=()=>{ $("#gearPop").classList.toggle("show"); };
   document.addEventListener("click",e=>{
     const row=$("#gearRow");
@@ -1017,7 +1035,7 @@
     const early=new Date().getHours()<DAY_START_HOUR;
     $("#today").textContent = early ? label+" (still, until 5am)" : label;
   }
-  setInterval(setToday,60000);
+  setInterval(()=>{ setToday(); checkGoalRollover(); },60000);
 
   function renderWarn(){
     const w=$("#warn");
@@ -1044,6 +1062,7 @@
     applyAccent();
     updateGoalsUI();
     renderGearPop();
+    checkGoalRollover();
     renderTabs();
     renderList();
     renderLogCount();

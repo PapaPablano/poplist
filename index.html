@@ -341,6 +341,11 @@
     <button id="addBtn">Add</button>
   </div>
 
+  <div class="gear-row" id="gearRow" style="display:none;">
+    <button class="gear-btn" id="gearBtn" title="Set your working days">⚙ Working days</button>
+    <div class="gear-pop" id="gearPop"></div>
+  </div>
+
   <div class="list" id="list"></div>
 </div>
 
@@ -548,12 +553,14 @@
       b.className="tab"+(t.key===state.active?" on":"");
       b.style.setProperty("--tab-c",t.color);
       b.innerHTML=`<span class="tick"></span>${t.label}<span class="cnt">${state.tabs[t.key].length}</span>`;
-      b.onclick=()=>{ state.active=t.key; applyAccent(); renderTabs(); renderList(); save(); };
+      b.onclick=()=>{ state.active=t.key; applyAccent(); updateGoalsUI(); renderTabs(); renderList(); save(); };
       tabsEl.appendChild(b);
     });
   }
 
   function renderList(){
+    const activeTab=TABS.find(t=>t.key===state.active);
+    if(activeTab && activeTab.type==="goals"){ renderGoals(); return; }
     const items=state.tabs[state.active];
     listEl.innerHTML="";
     if(!items.length){
@@ -585,6 +592,90 @@
   }
   function escapeHtml(s){return s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
 
+  /* ---------- Goals ---------- */
+  function renderGoals(){
+    const items=state.tabs.goals;
+    listEl.innerHTML="";
+    if(!items.length){
+      const e=document.createElement("div");
+      e.className="empty";
+      e.innerHTML=`<div class="em">◎</div><div class="big">No goals yet</div><div>Add one above, like "20 cars delivered" or "270 calls".</div>`;
+      listEl.appendChild(e);
+      return;
+    }
+    const c=tabColor("goals");
+    const today=dayStamp(new Date());
+    const wd=state.workingDays;
+    items.forEach(g=>{
+      const daysLeft=GoalsLogic.workingDaysLeft(today,wd);
+      const pace=GoalsLogic.computePace(g.target,g.current,daysLeft);
+      const pct=g.target>0 ? Math.min(100,Math.round((g.current/g.target)*100)) : 0;
+      const el=document.createElement("div");
+      el.className="bubble goal"+(pace.remaining===0?" celebrated":"");
+      el.dataset.id=g.id;
+      el.style.setProperty("--tab-c",c);
+      let heroHtml;
+      if(pace.remaining===0){
+        heroHtml=`<div class="hero-text">🎉 Goal hit</div>`;
+      }else if(pace.noWorkingDaysLeft){
+        heroHtml=`<div class="hero-warn">No working days left this month</div>`;
+      }else{
+        heroHtml=`<div class="hero-num">${pace.perDay}</div><div class="hero-label">per day</div>`;
+      }
+      el.innerHTML=`
+        <div class="goal-body">
+          <div class="goal-top">
+            <span class="goal-cap">${escapeHtml(g.label)} · ${g.target} total</span>
+            <span class="goal-actions">
+              <button class="gicon gedit" aria-label="Edit goal">✏</button>
+              <button class="gicon gdel" aria-label="Delete goal">×</button>
+            </span>
+          </div>
+          <div class="goal-hero">${heroHtml}</div>
+          <div class="goal-bar"><div class="goal-bar-fill" style="width:${pct}%"></div></div>
+          <div class="goal-cap goal-foot">
+            <span class="gcur" data-id="${g.id}">${g.current}</span>/${g.target}
+            ${pace.remaining>0?` · ${pace.remaining} left`:""}
+            ${!pace.noWorkingDaysLeft?` · ${daysLeft} workdays left`:""}
+          </div>
+        </div>`;
+      el.querySelector(".gdel").onclick=()=>deleteGoal(g.id);
+      listEl.appendChild(el);
+    });
+  }
+
+  function flashInputError(){
+    input.classList.add("shake");
+    setTimeout(()=>input.classList.remove("shake"),450);
+  }
+
+  function addGoal(){
+    const v=input.value.trim();
+    const parsed=GoalsLogic.parseGoalInput(v);
+    if(!parsed){ flashInputError(); return; }
+    state.tabs.goals.push({
+      id:uid(), target:parsed.target, label:parsed.label, current:0,
+      periodKey:GoalsLogic.periodKeyFor(dayStamp(new Date())),
+      celebrated:false, createdAt:Date.now()
+    });
+    input.value="";
+    renderTabs(); renderList(); save();
+  }
+
+  function deleteGoal(id){
+    const arr=state.tabs.goals;
+    const idx=arr.findIndex(x=>x.id===id);
+    if(idx>-1) arr.splice(idx,1);
+    renderTabs(); renderList(); save();
+  }
+
+  function updateGoalsUI(){
+    const tab=TABS.find(t=>t.key===state.active);
+    const isGoals=!!(tab && tab.type==="goals");
+    input.placeholder = isGoals ? "Add a goal, e.g. 20 cars delivered" : "Add a task…";
+    $("#gearRow").style.display = isGoals ? "flex" : "none";
+  }
+
   /* ---------- add ---------- */
   const input=$("#taskInput");
   function addTask(){
@@ -594,8 +685,12 @@
     input.value="";
     renderTabs(); renderList(); save();
   }
-  $("#addBtn").onclick=addTask;
-  input.addEventListener("keydown",e=>{ if(e.key==="Enter") addTask(); });
+  function addItem(){
+    const tab=TABS.find(t=>t.key===state.active);
+    if(tab && tab.type==="goals"){ addGoal(); } else { addTask(); }
+  }
+  $("#addBtn").onclick=addItem;
+  input.addEventListener("keydown",e=>{ if(e.key==="Enter") addItem(); });
 
   /* ---------- pop / complete ---------- */
   function popTask(id,el){
@@ -863,6 +958,7 @@
     await verifyStorage();
     await load();
     applyAccent();
+    updateGoalsUI();
     renderTabs();
     renderList();
     renderLogCount();

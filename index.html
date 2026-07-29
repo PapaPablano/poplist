@@ -1001,7 +1001,7 @@
 
   /* ---------- export / import (manual cross-device transfer) ---------- */
   $("#exportBtn").onclick=()=>{
-    const payload=JSON.stringify({tabs:state.tabs,delegated:state.delegated,exportedAt:Date.now()},null,2);
+    const payload=JSON.stringify({tabs:state.tabs,delegated:state.delegated,workingDays:state.workingDays,exportedAt:Date.now()},null,2);
     const blob=new Blob([payload],{type:"application/json"});
     const url=URL.createObjectURL(blob);
     const a=document.createElement("a");
@@ -1022,7 +1022,9 @@
         TAB_KEYS.forEach(k=>{ if(!Array.isArray(p.tabs[k])) p.tabs[k]=[]; });
         state.tabs=p.tabs;
         state.delegated=Array.isArray(p.delegated)?p.delegated:[];
-        renderTabs(); renderList(); renderLogCount(); save(); backup();
+        state.workingDays=(Array.isArray(p.workingDays) && p.workingDays.length===7)
+          ? p.workingDays : GoalsLogic.defaultWorkingDays();
+        renderTabs(); updateGoalsUI(); renderGearPop(); renderList(); renderLogCount(); save(); backup();
         alert("Backup loaded.");
       }catch(err){ alert("That file doesn't look like a Poplist backup."); }
       e.target.value="";

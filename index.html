@@ -23,6 +23,7 @@
     --home:#5aa87c;
     --followup:#e0a23c;
     --buy:#a07bd4;
+    --goals:#3fa7a0;
     --accent:var(--work);
     --accent-soft:rgba(91,141,239,.12);
     font-size:16px;
@@ -329,6 +330,7 @@
   </div>
 </div>
 
+<script src="goals-logic.js"></script>
 <script>
 "use strict";
 (function(){
@@ -336,7 +338,8 @@
     {key:"followup", label:"Customer Follow-up",color:"#e0a23c"},
     {key:"work",     label:"Work",             color:"#5b8def"},
     {key:"home",     label:"Home",             color:"#5aa87c"},
-    {key:"buy",      label:"Purchases",        color:"#a07bd4"}
+    {key:"buy",      label:"Purchases",        color:"#a07bd4"},
+    {key:"goals",    label:"Goals",            color:"#3fa7a0", type:"goals"}
   ];
   const TAB_KEYS = TABS.map(t=>t.key);
   const STORE_KEY = "poplist:v1";
@@ -344,8 +347,9 @@
   const DAY_START_HOUR = 5; // a "day" rolls over at 5am, not midnight
 
   let state = {
-    tabs:{followup:[],work:[],home:[],buy:[]},
+    tabs:{followup:[],work:[],home:[],buy:[],goals:[]},
     delegated:[],
+    workingDays: GoalsLogic.defaultWorkingDays(),
     active:"followup"
   };
   let storageOK = null;   // null = unknown, true/false once verified
@@ -439,6 +443,8 @@
     // migrate any legacy key names
     state.tabs=p.tabs;
     state.delegated=Array.isArray(p.delegated)?p.delegated:[];
+    state.workingDays = (Array.isArray(p.workingDays) && p.workingDays.length===7)
+      ? p.workingDays : GoalsLogic.defaultWorkingDays();
     if(TAB_KEYS.includes(p.active)) state.active=p.active;
     return true;
   }

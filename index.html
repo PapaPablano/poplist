@@ -735,6 +735,30 @@
     $("#gearRow").style.display = isGoals ? "flex" : "none";
   }
 
+  const DOW_LABELS=["S","M","T","W","T","F","S"];
+  function renderGearPop(){
+    const pop=$("#gearPop");
+    pop.innerHTML=state.workingDays.map((on,i)=>
+      `<button class="${on?"on":""}" data-i="${i}" title="${on?"Working day":"Off"}">${DOW_LABELS[i]}</button>`
+    ).join("");
+    pop.querySelectorAll("button").forEach(b=>{
+      b.onclick=()=>{
+        const i=Number(b.dataset.i);
+        state.workingDays[i]=!state.workingDays[i];
+        renderGearPop();
+        renderList();
+        save();
+      };
+    });
+  }
+  $("#gearBtn").onclick=()=>{ $("#gearPop").classList.toggle("show"); };
+  document.addEventListener("click",e=>{
+    const row=$("#gearRow");
+    if(row.style.display!=="none" && !row.contains(e.target)){
+      $("#gearPop").classList.remove("show");
+    }
+  });
+
   /* ---------- add ---------- */
   const input=$("#taskInput");
   function addTask(){
@@ -1018,6 +1042,7 @@
     await load();
     applyAccent();
     updateGoalsUI();
+    renderGearPop();
     renderTabs();
     renderList();
     renderLogCount();

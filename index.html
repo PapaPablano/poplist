@@ -607,6 +607,16 @@
   function renderGoals(){
     const items=state.tabs.goals;
     listEl.innerHTML="";
+    // Guard against goals-logic.js failing to load (see safeDefaultWorkingDays
+    // and checkGoalRollover above). Without this, computing pace/workingDaysLeft
+    // below would throw and crash the whole app, not just the Goals tab.
+    if(typeof GoalsLogic==="undefined"){
+      const e=document.createElement("div");
+      e.className="empty";
+      e.innerHTML=`<div class="em">⚠</div><div class="big">Goals unavailable</div><div>goals-logic.js failed to load. Other tabs are unaffected.</div>`;
+      listEl.appendChild(e);
+      return;
+    }
     if(!items.length){
       const e=document.createElement("div");
       e.className="empty";

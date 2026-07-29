@@ -395,10 +395,21 @@
   const BACKUP_KEY = "poplist:v1:backup";
   const DAY_START_HOUR = 5; // a "day" rolls over at 5am, not midnight
 
+  // Guard against goals-logic.js failing to load (404, split from index.html
+  // when shared standalone, typo'd path, etc). Without this, a missing
+  // GoalsLogic would throw at parse time and take down all four original
+  // tabs along with the Goals tab. Fall back to a same-shape default so the
+  // rest of the app stays fully functional even if goals-logic.js is gone.
+  function safeDefaultWorkingDays(){
+    return (typeof GoalsLogic!=="undefined")
+      ? GoalsLogic.defaultWorkingDays()
+      : [false,false,true,true,true,true,true];
+  }
+
   let state = {
     tabs:{followup:[],work:[],home:[],buy:[],goals:[]},
     delegated:[],
-    workingDays: GoalsLogic.defaultWorkingDays(),
+    workingDays: safeDefaultWorkingDays(),
     active:"followup"
   };
   let storageOK = null;   // null = unknown, true/false once verified
@@ -493,7 +504,7 @@
     state.tabs=p.tabs;
     state.delegated=Array.isArray(p.delegated)?p.delegated:[];
     state.workingDays = (Array.isArray(p.workingDays) && p.workingDays.length===7)
-      ? p.workingDays : GoalsLogic.defaultWorkingDays();
+      ? p.workingDays : safeDefaultWorkingDays();
     if(TAB_KEYS.includes(p.active)) state.active=p.active;
     return true;
   }
@@ -690,8 +701,9 @@
     function commit(){
       if(committed) return;
       committed=true;
-      const n=Number(inp.value);
-      g.current = isNaN(n) ? g.current : n;
+      const raw=inp.value.trim();
+      const n=Number(raw);
+      if(raw!=="" && !isNaN(n)) g.current=Math.max(0,n);
       renderGoals(); save();
     }
     inp.addEventListener("blur",commit);
@@ -754,6 +766,9 @@
   }
 
   function checkGoalRollover(){
+    // Called unconditionally from init() regardless of active tab, so it must
+    // not throw if goals-logic.js failed to load (see safeDefaultWorkingDays).
+    if(typeof GoalsLogic==="undefined") return;
     const key=GoalsLogic.periodKeyFor(dayStamp(new Date()));
     let changed=false;
     state.tabs.goals.forEach(g=>{
@@ -1023,7 +1038,7 @@
         state.tabs=p.tabs;
         state.delegated=Array.isArray(p.delegated)?p.delegated:[];
         state.workingDays=(Array.isArray(p.workingDays) && p.workingDays.length===7)
-          ? p.workingDays : GoalsLogic.defaultWorkingDays();
+          ? p.workingDays : safeDefaultWorkingDays();
         renderTabs(); updateGoalsUI(); renderGearPop(); renderList(); renderLogCount(); save(); backup();
         alert("Backup loaded.");
       }catch(err){ alert("That file doesn't look like a Poplist backup."); }

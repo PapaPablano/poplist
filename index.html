@@ -278,6 +278,50 @@
   @media (prefers-reduced-motion:reduce){
     *{animation-duration:.001ms !important;transition-duration:.05ms !important;}
   }
+  /* Goals tab */
+  .bubble.goal{flex-direction:column;align-items:stretch;padding:16px 18px 14px;}
+  .bubble.goal .goal-body{width:100%;position:relative;z-index:1;}
+  .goal-top{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+  .goal-cap{font-size:.78rem;color:var(--ink-faint);}
+  .goal-actions{display:flex;gap:2px;flex:none;}
+  .gicon{border:none;background:transparent;color:var(--ink-faint);font-size:.95rem;
+    cursor:pointer;padding:2px 7px;border-radius:8px;transition:color .15s,background .15s;}
+  .gicon:hover{color:var(--ink);background:rgba(40,50,80,.06);}
+  .goal-hero{text-align:center;padding:10px 0 6px;}
+  .hero-num{font-family:"Nunito",sans-serif;font-weight:800;font-size:2.6rem;line-height:1;color:var(--tab-c);}
+  .hero-label{font-size:.78rem;color:var(--ink-soft);margin-top:2px;text-transform:uppercase;letter-spacing:.04em;}
+  .hero-text{font-family:"Nunito",sans-serif;font-weight:800;font-size:1.3rem;color:var(--ok);}
+  .hero-warn{font-size:.92rem;color:var(--danger);font-weight:600;}
+  .goal-bar{height:6px;border-radius:999px;background:var(--line);overflow:hidden;margin:6px 0 8px;}
+  .goal-bar-fill{height:100%;background:var(--tab-c);border-radius:999px;transition:width .3s ease;}
+  .bubble.goal.celebrated{border-color:var(--ok);}
+  .bubble.goal.celebrated .goal-bar-fill{background:var(--ok);}
+  .goal-foot{text-align:center;}
+  .gcur{cursor:pointer;border-bottom:1px dashed var(--ink-faint);color:var(--ink);font-weight:600;}
+  .gcur-input{width:70px;font-size:.9rem;padding:2px 6px;border:1px solid var(--accent);border-radius:8px;
+    font-family:inherit;text-align:center;}
+  .goal-edit-row{display:flex;gap:8px;align-items:center;padding:6px 0;}
+  .gedit-input{flex:1;padding:8px 10px;border:1px solid var(--line);border-radius:10px;
+    font-size:.92rem;font-family:inherit;}
+  .shake{animation:inputshake .4s;}
+  @keyframes inputshake{
+    10%,90%{transform:translateX(-2px);}
+    20%,80%{transform:translateX(3px);}
+    30%,50%,70%{transform:translateX(-5px);}
+    40%,60%{transform:translateX(5px);}
+  }
+  .add input.shake{border-color:var(--danger);}
+  .gear-row{display:flex;align-items:center;gap:8px;margin:-8px 0 14px;position:relative;}
+  .gear-btn{border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 12px;
+    font-size:.8rem;color:var(--ink-soft);cursor:pointer;}
+  .gear-btn:hover{color:var(--ink);}
+  .gear-pop{display:none;position:absolute;top:100%;left:0;margin-top:6px;background:#fff;
+    border:1px solid var(--line);border-radius:12px;padding:6px;box-shadow:0 8px 20px rgba(40,50,80,.12);
+    gap:4px;z-index:10;}
+  .gear-pop.show{display:flex;}
+  .gear-pop button{width:28px;height:28px;border-radius:8px;border:1px solid var(--line);
+    background:#fff;font-size:.78rem;cursor:pointer;color:var(--ink-faint);}
+  .gear-pop button.on{background:var(--tab-c,var(--accent));color:#fff;border-color:transparent;}
 </style>
 </head>
 <body>

@@ -640,6 +640,8 @@
           </div>
         </div>`;
       el.querySelector(".gdel").onclick=()=>deleteGoal(g.id);
+      el.querySelector(".gedit").onclick=()=>startEditGoal(g.id,el);
+      el.querySelector(".gcur").onclick=e=>startEditCurrent(g.id,e.target);
       listEl.appendChild(el);
     });
   }
@@ -667,6 +669,58 @@
     const idx=arr.findIndex(x=>x.id===id);
     if(idx>-1) arr.splice(idx,1);
     renderTabs(); renderList(); save();
+  }
+
+  function startEditCurrent(id, spanEl){
+    const g=state.tabs.goals.find(x=>x.id===id);
+    if(!g) return;
+    const inp=document.createElement("input");
+    inp.type="number";
+    inp.className="gcur-input";
+    inp.value=g.current;
+    spanEl.replaceWith(inp);
+    inp.focus();
+    inp.select();
+    let committed=false;
+    function commit(){
+      if(committed) return;
+      committed=true;
+      const n=Number(inp.value);
+      g.current = isNaN(n) ? g.current : n;
+      renderGoals(); save();
+    }
+    inp.addEventListener("blur",commit);
+    inp.addEventListener("keydown",e=>{
+      if(e.key==="Enter"){ inp.blur(); }
+      else if(e.key==="Escape"){ committed=true; renderGoals(); }
+    });
+  }
+
+  function startEditGoal(id, el){
+    const g=state.tabs.goals.find(x=>x.id===id);
+    if(!g) return;
+    const body=el.querySelector(".goal-body");
+    body.innerHTML=`
+      <div class="goal-edit-row">
+        <input type="text" class="gedit-input" value="${escapeHtml(g.target+" "+g.label)}">
+        <button class="gicon gsave" aria-label="Save">✓</button>
+        <button class="gicon gcancel" aria-label="Cancel">×</button>
+      </div>`;
+    const inp=body.querySelector(".gedit-input");
+    inp.focus();
+    inp.select();
+    function saveEdit(){
+      const parsed=GoalsLogic.parseGoalInput(inp.value.trim());
+      if(!parsed){ inp.classList.add("shake"); setTimeout(()=>inp.classList.remove("shake"),450); return; }
+      g.target=parsed.target; g.label=parsed.label;
+      renderGoals(); save();
+    }
+    body.querySelector(".gsave").onclick=saveEdit;
+    body.querySelector(".gcancel").onclick=()=>renderGoals();
+    inp.addEventListener("keydown",e=>{
+      if(e.key==="Enter") saveEdit();
+      else if(e.key==="Escape") renderGoals();
+    });
   }
 
   function updateGoalsUI(){

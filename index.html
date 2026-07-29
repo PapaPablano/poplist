@@ -742,7 +742,8 @@
       `<button class="${on?"on":""}" data-i="${i}" title="${on?"Working day":"Off"}">${DOW_LABELS[i]}</button>`
     ).join("");
     pop.querySelectorAll("button").forEach(b=>{
-      b.onclick=()=>{
+      b.onclick=(e)=>{
+        e.stopPropagation();
         const i=Number(b.dataset.i);
         state.workingDays[i]=!state.workingDays[i];
         renderGearPop();

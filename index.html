@@ -177,14 +177,18 @@
     font-size:.9rem;padding:2px 4px;line-height:1;
   }
   .goal-edit:hover{color:var(--tab-c);}
-  .goal-pace{font-family:"Nunito",sans-serif;color:var(--tab-c);line-height:1;}
-  .goal-pace b{font-size:1.5rem;font-weight:800;}
-  .goal-pace span{font-size:.82rem;font-weight:700;margin-left:3px;color:var(--ink-soft);}
-  .goal-done{font-family:"Nunito",sans-serif;font-weight:800;color:var(--ok);font-size:1.05rem;}
-  .goal-sub{font-size:.78rem;color:var(--ink-faint);}
+  .goal-pace-wrap{text-align:center;padding:5px 0 3px;}
+  .goal-pace-num{font-family:"Nunito",sans-serif;font-weight:800;font-size:2.6rem;line-height:1;color:var(--tab-c);}
+  .goal-pace-cap{
+    font-family:"Nunito",sans-serif;font-weight:800;font-size:.72rem;letter-spacing:.09em;
+    text-transform:uppercase;color:var(--ink-faint);margin-top:3px;
+  }
+  .goal-done{font-family:"Nunito",sans-serif;font-weight:800;color:var(--ok);font-size:1.15rem;text-align:center;padding:10px 0;}
+  .goal-stats{font-size:.82rem;color:var(--ink-faint);text-align:center;}
+  .goal-stats b{color:var(--ink);font-weight:800;}
   .goal-bar{height:6px;border-radius:999px;background:var(--line);overflow:hidden;margin:2px 0;}
   .goal-fill{height:100%;background:var(--tab-c);border-radius:999px;transition:width .25s;}
-  .goal-current-row{display:flex;align-items:center;gap:8px;font-size:.82rem;color:var(--ink-soft);}
+  .goal-current-row{display:flex;align-items:center;gap:8px;font-size:.82rem;color:var(--ink-soft);justify-content:center;}
   .goal-cur-btn{
     border:1px solid var(--line);background:#fff;border-radius:10px;
     padding:3px 10px;font-family:"Nunito",sans-serif;font-weight:800;color:var(--ink);
@@ -862,7 +866,7 @@
     const achieved=g.target>0 && g.current>=g.target;
     const perDay=daysLeft>0 ? remaining/daysLeft : remaining;
     const pct=g.target>0 ? Math.min(100,(g.current/g.target)*100) : 0;
-    const daysLabel = daysLeft>0 ? `${daysLeft} day${daysLeft===1?"":"s"} left` : "no working days left";
+    const daysLabel = daysLeft>0 ? `${daysLeft} workday${daysLeft===1?"":"s"} left` : "no workdays left";
     return `<div class="body goal-body">
       <div class="goal-top">
         <span class="goal-unit">${escapeHtml(g.unit)}</span>
@@ -870,9 +874,9 @@
       </div>
       ${achieved
         ? `<div class="goal-done">🎉 Goal met</div>`
-        : `<div class="goal-pace"><b>${fmtNum(perDay)}</b><span>/day</span></div>`}
-      <div class="goal-sub">${fmtNum(g.current)} of ${fmtNum(g.target)} · ${daysLabel}</div>
+        : `<div class="goal-pace-wrap"><div class="goal-pace-num">${fmtNum(perDay)}</div><div class="goal-pace-cap">Per day</div></div>`}
       <div class="goal-bar"><div class="goal-fill" style="width:${pct}%"></div></div>
+      <div class="goal-stats"><b>${fmtNum(g.current)}</b>/${fmtNum(g.target)} · ${fmtNum(remaining)} left · ${daysLabel}</div>
       <div class="goal-current-row">
         <span>Current</span>
         <button class="goal-cur-btn" data-role="cur" type="button">${fmtNum(g.current)}</button>

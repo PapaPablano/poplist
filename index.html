@@ -93,19 +93,19 @@
     border-style:dashed;color:var(--ink-faint);font-size:1.05rem;font-weight:800;
   }
   .tab.tab-add:hover{color:var(--ink);border-color:var(--ink-faint);background:rgba(255,255,255,.6);}
-  /* Goal settings (working-days picker, goal-type tabs only) */
-  .goal-settings{
-    display:none;flex-direction:column;gap:8px;
-    margin:0 0 12px;font-size:.8rem;color:var(--ink-soft);
+  /* Toggle row: working-days summary + add-row toggle share one line */
+  .ctrl-toggles{
+    display:flex;align-items:center;gap:18px;flex-wrap:wrap;
+    margin:0 0 10px;font-size:.8rem;color:var(--ink-soft);
   }
-  .gs-toggle{
+  .gs-toggle,.add-toggle{
     display:flex;align-items:center;gap:7px;background:none;border:none;cursor:pointer;
-    color:var(--ink-soft);font:inherit;font-weight:600;padding:2px;align-self:flex-start;
+    color:var(--ink-soft);font:inherit;font-weight:600;padding:2px;
   }
-  .gs-toggle:hover{color:var(--ink);}
-  .gs-chev{display:inline-block;font-size:.68rem;transition:transform .15s;color:var(--ink-faint);}
-  .gs-toggle.open .gs-chev{transform:rotate(90deg);}
-  .gs-days{display:none;align-items:center;gap:6px;flex-wrap:wrap;}
+  .gs-toggle:hover,.add-toggle:hover{color:var(--ink);}
+  .chev{display:inline-block;font-size:.68rem;color:var(--ink-faint);transition:transform .15s;}
+  .gs-toggle.open .chev,.add-toggle.open .chev{transform:rotate(90deg);}
+  .gs-days{display:none;align-items:center;gap:6px;flex-wrap:wrap;margin:0 0 12px;}
   .gs-days.open{display:flex;}
   .gs-day{
     border:1px solid var(--line);background:#fff;color:var(--ink-faint);
@@ -114,16 +114,8 @@
   }
   .gs-day.on{background:var(--accent);color:#fff;border-color:transparent;}
   /* Add row */
-  .add-wrap{margin:4px 0 18px;}
-  .add-toggle{
-    display:flex;align-items:center;gap:7px;background:none;border:none;cursor:pointer;
-    color:var(--ink-soft);font:inherit;font-weight:600;font-size:.8rem;padding:2px;margin-bottom:8px;
-  }
-  .add-toggle:hover{color:var(--ink);}
-  .add-toggle .chev{display:inline-block;font-size:.68rem;color:var(--ink-faint);transition:transform .15s;}
-  .add-toggle.open .chev{transform:rotate(90deg);}
   .add{
-    display:none;gap:8px;
+    display:none;gap:8px;margin:0 0 18px;
   }
   .add.open{display:flex;}
   .add input{
@@ -378,16 +370,18 @@
 
   <nav class="tabs" id="tabs"></nav>
 
-  <div class="goal-settings" id="goalSettings"></div>
-
-  <div class="add-wrap">
+  <div class="ctrl-toggles" id="ctrlToggles">
+    <button type="button" class="gs-toggle" id="gsToggle" style="display:none;">
+      <span class="chev">▸</span><span id="gsToggleLabel">Working days</span>
+    </button>
     <button type="button" class="add-toggle open" id="addToggle">
       <span class="chev">▸</span><span id="addToggleLabel">Add a task</span>
     </button>
-    <div class="add open" id="addRow">
-      <input id="taskInput" type="text" placeholder="Add a task…" autocomplete="off" enterkeyhint="done">
-      <button id="addBtn">Add</button>
-    </div>
+  </div>
+  <div class="gs-days" id="gsDays"></div>
+  <div class="add open" id="addRow">
+    <input id="taskInput" type="text" placeholder="Add a task…" autocomplete="off" enterkeyhint="done">
+    <button id="addBtn">Add</button>
   </div>
 
   <div class="list" id="list"></div>
@@ -814,20 +808,23 @@
       : sorted.map(d=>abbr[d]).join(", ");
   }
   function renderGoalSettings(){
-    const el=$("#goalSettings");
+    const toggleBtn=$("#gsToggle"), daysEl=$("#gsDays");
     const t=activeTab();
-    if(!t || t.type!=="goal"){ el.style.display="none"; el.innerHTML=""; return; }
-    el.style.display="flex";
+    if(!t || t.type!=="goal"){
+      toggleBtn.style.display="none";
+      daysEl.classList.remove("open");
+      daysEl.innerHTML="";
+      return;
+    }
+    toggleBtn.style.display="flex";
+    toggleBtn.classList.toggle("open",goalSettingsOpen);
+    $("#gsToggleLabel").textContent=`Working days: ${workDaysSummary(t.workDays)}`;
+    daysEl.classList.toggle("open",goalSettingsOpen);
     const days=["Su","Mo","Tu","We","Th","Fr","Sa"];
-    el.innerHTML=`
-      <button type="button" class="gs-toggle${goalSettingsOpen?" open":""}" id="gsToggle">
-        <span class="gs-chev">▸</span><span>Working days: ${workDaysSummary(t.workDays)}</span>
-      </button>
-      <div class="gs-days${goalSettingsOpen?" open":""}">`+days.map((d,i)=>
-        `<button type="button" class="gs-day${t.workDays.includes(i)?" on":""}" data-d="${i}">${d}</button>`
-      ).join("")+`</div>`;
-    $("#gsToggle").onclick=()=>{ goalSettingsOpen=!goalSettingsOpen; renderGoalSettings(); };
-    el.querySelectorAll(".gs-day").forEach(b=>{
+    daysEl.innerHTML=days.map((d,i)=>
+      `<button type="button" class="gs-day${t.workDays.includes(i)?" on":""}" data-d="${i}">${d}</button>`
+    ).join("");
+    daysEl.querySelectorAll(".gs-day").forEach(b=>{
       b.onclick=()=>{
         const d=parseInt(b.dataset.d,10);
         const idx=t.workDays.indexOf(d);
@@ -836,6 +833,7 @@
       };
     });
   }
+  $("#gsToggle").onclick=()=>{ goalSettingsOpen=!goalSettingsOpen; renderGoalSettings(); };
   function monthKey(d){ return d.getFullYear()+"-"+d.getMonth(); }
   function monthLabel(mk){
     const parts=mk.split("-").map(Number);

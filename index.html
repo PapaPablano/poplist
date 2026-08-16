@@ -114,9 +114,18 @@
   }
   .gs-day.on{background:var(--accent);color:#fff;border-color:transparent;}
   /* Add row */
-  .add{
-    display:flex;gap:8px;margin:4px 0 18px;
+  .add-wrap{margin:4px 0 18px;}
+  .add-toggle{
+    display:flex;align-items:center;gap:7px;background:none;border:none;cursor:pointer;
+    color:var(--ink-soft);font:inherit;font-weight:600;font-size:.8rem;padding:2px;margin-bottom:8px;
   }
+  .add-toggle:hover{color:var(--ink);}
+  .add-toggle .chev{display:inline-block;font-size:.68rem;color:var(--ink-faint);transition:transform .15s;}
+  .add-toggle.open .chev{transform:rotate(90deg);}
+  .add{
+    display:none;gap:8px;
+  }
+  .add.open{display:flex;}
   .add input{
     flex:1;min-width:0;border:1px solid var(--line);background:#fff;border-radius:14px;
     padding:14px 16px;font-size:1rem;font-family:inherit;color:var(--ink);
@@ -371,9 +380,14 @@
 
   <div class="goal-settings" id="goalSettings"></div>
 
-  <div class="add">
-    <input id="taskInput" type="text" placeholder="Add a task…" autocomplete="off" enterkeyhint="done">
-    <button id="addBtn">Add</button>
+  <div class="add-wrap">
+    <button type="button" class="add-toggle open" id="addToggle">
+      <span class="chev">▸</span><span id="addToggleLabel">Add a task</span>
+    </button>
+    <div class="add open" id="addRow">
+      <input id="taskInput" type="text" placeholder="Add a task…" autocomplete="off" enterkeyhint="done">
+      <button id="addBtn">Add</button>
+    </div>
   </div>
 
   <div class="list" id="list"></div>
@@ -772,7 +786,10 @@
   /* ---------- Goal tabs ---------- */
   function updatePlaceholder(){
     const t=activeTab();
-    input.placeholder = (t&&t.type==="goal") ? "e.g. 20 cars delivered" : "Add a task…";
+    const isGoal = !!(t&&t.type==="goal");
+    input.placeholder = isGoal ? "e.g. 20 cars delivered" : "Add a task…";
+    const lbl=$("#addToggleLabel");
+    if(lbl) lbl.textContent = isGoal ? "Add a goal" : "Add a task";
   }
   function updateFooter(){
     const t=activeTab();
@@ -999,6 +1016,15 @@
   }
   $("#addBtn").onclick=addTask;
   input.addEventListener("keydown",e=>{ if(e.key==="Enter") addTask(); });
+
+  let addRowOpen=true;
+  const addToggleBtn=$("#addToggle"), addRowEl=$("#addRow");
+  function setAddOpen(open){
+    addRowOpen=open;
+    addToggleBtn.classList.toggle("open",open);
+    addRowEl.classList.toggle("open",open);
+  }
+  addToggleBtn.onclick=()=>{ setAddOpen(!addRowOpen); if(addRowOpen) input.focus(); };
 
   /* ---------- pop / complete ---------- */
   function popTask(id,el){

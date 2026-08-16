@@ -95,10 +95,18 @@
   .tab.tab-add:hover{color:var(--ink);border-color:var(--ink-faint);background:rgba(255,255,255,.6);}
   /* Goal settings (working-days picker, goal-type tabs only) */
   .goal-settings{
-    display:none;align-items:center;gap:6px;flex-wrap:wrap;
+    display:none;flex-direction:column;gap:8px;
     margin:0 0 12px;font-size:.8rem;color:var(--ink-soft);
   }
-  .gs-label{font-weight:600;margin-right:2px;}
+  .gs-toggle{
+    display:flex;align-items:center;gap:7px;background:none;border:none;cursor:pointer;
+    color:var(--ink-soft);font:inherit;font-weight:600;padding:2px;align-self:flex-start;
+  }
+  .gs-toggle:hover{color:var(--ink);}
+  .gs-chev{display:inline-block;font-size:.68rem;transition:transform .15s;color:var(--ink-faint);}
+  .gs-toggle.open .gs-chev{transform:rotate(90deg);}
+  .gs-days{display:none;align-items:center;gap:6px;flex-wrap:wrap;}
+  .gs-days.open{display:flex;}
   .gs-day{
     border:1px solid var(--line);background:#fff;color:var(--ink-faint);
     border-radius:999px;width:34px;height:30px;font-size:.78rem;font-weight:700;
@@ -773,15 +781,31 @@
       logBtn.style.display="";
     }
   }
+  let goalSettingsOpen=false;
+  function workDaysSummary(workDays){
+    const abbr=["Su","Mo","Tu","We","Th","Fr","Sa"];
+    if(!workDays.length) return "None selected";
+    if(workDays.length===7) return "Every day";
+    const sorted=workDays.slice().sort((a,b)=>a-b);
+    const contiguous=sorted.every((d,i)=>i===0||d===sorted[i-1]+1);
+    return contiguous
+      ? `${abbr[sorted[0]]}–${abbr[sorted[sorted.length-1]]}`
+      : sorted.map(d=>abbr[d]).join(", ");
+  }
   function renderGoalSettings(){
     const el=$("#goalSettings");
     const t=activeTab();
     if(!t || t.type!=="goal"){ el.style.display="none"; el.innerHTML=""; return; }
     el.style.display="flex";
     const days=["Su","Mo","Tu","We","Th","Fr","Sa"];
-    el.innerHTML=`<span class="gs-label">Working days:</span>`+days.map((d,i)=>
-      `<button type="button" class="gs-day${t.workDays.includes(i)?" on":""}" data-d="${i}">${d}</button>`
-    ).join("");
+    el.innerHTML=`
+      <button type="button" class="gs-toggle${goalSettingsOpen?" open":""}" id="gsToggle">
+        <span class="gs-chev">▸</span><span>Working days: ${workDaysSummary(t.workDays)}</span>
+      </button>
+      <div class="gs-days${goalSettingsOpen?" open":""}">`+days.map((d,i)=>
+        `<button type="button" class="gs-day${t.workDays.includes(i)?" on":""}" data-d="${i}">${d}</button>`
+      ).join("")+`</div>`;
+    $("#gsToggle").onclick=()=>{ goalSettingsOpen=!goalSettingsOpen; renderGoalSettings(); };
     el.querySelectorAll(".gs-day").forEach(b=>{
       b.onclick=()=>{
         const d=parseInt(b.dataset.d,10);

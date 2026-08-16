@@ -93,18 +93,18 @@
     border-style:dashed;color:var(--ink-faint);font-size:1.05rem;font-weight:800;
   }
   .tab.tab-add:hover{color:var(--ink);border-color:var(--ink-faint);background:rgba(255,255,255,.6);}
-  /* Toggle row: working-days summary + add-row toggle share one line */
+  /* Toggle row: one control shows/hides both the working-days picker and the add row */
   .ctrl-toggles{
     display:flex;align-items:center;gap:18px;flex-wrap:wrap;
     margin:0 0 10px;font-size:.8rem;color:var(--ink-soft);
   }
-  .gs-toggle,.add-toggle{
+  .add-toggle{
     display:flex;align-items:center;gap:7px;background:none;border:none;cursor:pointer;
     color:var(--ink-soft);font:inherit;font-weight:600;padding:2px;
   }
-  .gs-toggle:hover,.add-toggle:hover{color:var(--ink);}
+  .add-toggle:hover{color:var(--ink);}
   .chev{display:inline-block;font-size:.68rem;color:var(--ink-faint);transition:transform .15s;}
-  .gs-toggle.open .chev,.add-toggle.open .chev{transform:rotate(90deg);}
+  .add-toggle.open .chev{transform:rotate(90deg);}
   .gs-days{display:none;align-items:center;gap:6px;flex-wrap:wrap;margin:0 0 12px;}
   .gs-days.open{display:flex;}
   .gs-day{
@@ -371,9 +371,6 @@
   <nav class="tabs" id="tabs"></nav>
 
   <div class="ctrl-toggles" id="ctrlToggles">
-    <button type="button" class="gs-toggle" id="gsToggle" style="display:none;">
-      <span class="chev">▸</span><span id="gsToggleLabel">Working days</span>
-    </button>
     <button type="button" class="add-toggle open" id="addToggle">
       <span class="chev">▸</span><span id="addToggleLabel">Add a task</span>
     </button>
@@ -783,7 +780,7 @@
     const isGoal = !!(t&&t.type==="goal");
     input.placeholder = isGoal ? "e.g. 20 cars delivered" : "Add a task…";
     const lbl=$("#addToggleLabel");
-    if(lbl) lbl.textContent = isGoal ? "Add a goal" : "Add a task";
+    if(lbl) lbl.textContent = isGoal ? `Add a goal · ${workDaysSummary(t.workDays)}` : "Add a task";
   }
   function updateFooter(){
     const t=activeTab();
@@ -796,7 +793,6 @@
       logBtn.style.display="";
     }
   }
-  let goalSettingsOpen=false;
   function workDaysSummary(workDays){
     const abbr=["Su","Mo","Tu","We","Th","Fr","Sa"];
     if(!workDays.length) return "None selected";
@@ -807,19 +803,17 @@
       ? `${abbr[sorted[0]]}–${abbr[sorted[sorted.length-1]]}`
       : sorted.map(d=>abbr[d]).join(", ");
   }
+  // The working-days picker shares its open/closed state with the add row
+  // (addRowOpen, declared below) so one toggle shows or hides both together.
   function renderGoalSettings(){
-    const toggleBtn=$("#gsToggle"), daysEl=$("#gsDays");
+    const daysEl=$("#gsDays");
     const t=activeTab();
     if(!t || t.type!=="goal"){
-      toggleBtn.style.display="none";
       daysEl.classList.remove("open");
       daysEl.innerHTML="";
       return;
     }
-    toggleBtn.style.display="flex";
-    toggleBtn.classList.toggle("open",goalSettingsOpen);
-    $("#gsToggleLabel").textContent=`Working days: ${workDaysSummary(t.workDays)}`;
-    daysEl.classList.toggle("open",goalSettingsOpen);
+    daysEl.classList.toggle("open",addRowOpen);
     const days=["Su","Mo","Tu","We","Th","Fr","Sa"];
     daysEl.innerHTML=days.map((d,i)=>
       `<button type="button" class="gs-day${t.workDays.includes(i)?" on":""}" data-d="${i}">${d}</button>`
@@ -829,11 +823,10 @@
         const d=parseInt(b.dataset.d,10);
         const idx=t.workDays.indexOf(d);
         if(idx>-1) t.workDays.splice(idx,1); else t.workDays.push(d);
-        renderGoalSettings(); renderList(); save();
+        renderGoalSettings(); renderList(); updatePlaceholder(); save();
       };
     });
   }
-  $("#gsToggle").onclick=()=>{ goalSettingsOpen=!goalSettingsOpen; renderGoalSettings(); };
   function monthKey(d){ return d.getFullYear()+"-"+d.getMonth(); }
   function monthLabel(mk){
     const parts=mk.split("-").map(Number);
@@ -1022,7 +1015,11 @@
     addToggleBtn.classList.toggle("open",open);
     addRowEl.classList.toggle("open",open);
   }
-  addToggleBtn.onclick=()=>{ setAddOpen(!addRowOpen); if(addRowOpen) input.focus(); };
+  addToggleBtn.onclick=()=>{
+    setAddOpen(!addRowOpen);
+    renderGoalSettings();
+    if(addRowOpen) input.focus();
+  };
 
   /* ---------- pop / complete ---------- */
   function popTask(id,el){

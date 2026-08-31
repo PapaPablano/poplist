@@ -349,6 +349,38 @@
     font-family:"Nunito",sans-serif;font-weight:700;font-size:.85rem;color:var(--ink-soft);cursor:pointer;
   }
   .mat-opt.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);}
+  /* Work hours sheet */
+  .hours-row{display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--line);}
+  .hours-row:last-child{border-bottom:none;}
+  .hours-day-toggle{
+    flex:none;width:56px;border:1px solid var(--line);background:#fff;color:var(--ink-faint);
+    border-radius:10px;padding:7px 0;font-family:"Nunito",sans-serif;font-weight:700;font-size:.8rem;cursor:pointer;
+  }
+  .hours-day-toggle.on{background:var(--accent);color:#fff;border-color:transparent;}
+  .hours-time{
+    flex:1;min-width:0;border:1px solid var(--line);border-radius:10px;padding:6px 8px;
+    font-family:inherit;font-size:.85rem;color:var(--ink);
+  }
+  .hours-time:disabled{opacity:.4;}
+  .hours-sep{color:var(--ink-faint);flex:none;}
+  /* Task-attached daily goal */
+  .task-body{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+  .task-text{flex:1;min-width:0;}
+  .task-goal-add{
+    flex:none;border:none;background:none;cursor:pointer;color:var(--ink-faint);
+    opacity:.35;font-size:.95rem;padding:2px 4px;line-height:1;
+  }
+  .task-goal-add:hover{opacity:1;color:var(--tab-c);}
+  .bubble.has-daily-goal .body{flex-direction:column;align-items:stretch;padding:13px 10px 13px 0;gap:5px;}
+  .task-goal-text{font-size:1rem;line-height:1.35;color:var(--ink);word-break:break-word;}
+  .daily-stats{font-size:.82rem;color:var(--ink-faint);text-align:center;}
+  .daily-stats b{color:var(--ink);font-weight:800;}
+  .daily-pace-row{font-size:.86rem;color:var(--ink-soft);text-align:center;}
+  .daily-pace-row b{color:var(--tab-c);font-weight:800;font-family:"Nunito",sans-serif;}
+  .daily-pace-note{font-size:.8rem;color:var(--ink-faint);text-align:center;font-style:italic;}
+  .daily-done{font-family:"Nunito",sans-serif;font-weight:800;color:var(--ok);font-size:1rem;text-align:center;padding:4px 0;}
+  .daily-goal-edit{flex:none;border:none;background:none;cursor:pointer;color:var(--ink-faint);font-size:.85rem;padding:2px 4px;}
+  .daily-goal-edit:hover{color:var(--tab-c);}
   @media (max-width:420px){
     .brand{font-size:1.7rem;}
     .wrap{padding-top:16px;}
@@ -438,7 +470,22 @@
     </div>
     <div class="log-body" id="manageBody"></div>
     <div class="sheet-foot">
+      <button class="btn btn-ghost" id="openHoursBtn">Work hours</button>
       <button class="btn btn-solid" id="manageClose">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- Work hours overlay -->
+<div class="scrim" id="hoursScrim">
+  <div class="sheet">
+    <div class="sheet-head">
+      <h2>Work hours</h2>
+      <p>Set your office hours per day — used to pace daily goals on your to-dos.</p>
+    </div>
+    <div class="log-body" id="hoursBody"></div>
+    <div class="sheet-foot">
+      <button class="btn btn-solid" id="hoursClose">Done</button>
     </div>
   </div>
 </div>
@@ -452,6 +499,24 @@
   const DEFAULT_WORK_DAYS = [2,3,4,5,6]; // Tue-Sat; Sun(0)/Mon(1) off by default
   const PALETTE = ["#2fa9a4","#c76fa0","#5b8def","#5aa87c","#a07bd4","#e0a23c","#d16a6a","#6d9dc5"];
 
+  // Office hours per weekday (0=Sun..6=Sat), used to pace daily goals attached
+  // to to-dos. A day with no entry is treated as not a work day.
+  function defaultWorkHours(){
+    const o={};
+    [1,2,3,4,5].forEach(d=>{ o[d]={start:"09:00",end:"17:00"}; });
+    return o;
+  }
+  const TIME_RE=/^([01]\d|2[0-3]):[0-5]\d$/;
+  function normalizeWorkHours(wh){
+    if(!wh || typeof wh!=="object") return defaultWorkHours();
+    const out={};
+    for(let d=0; d<7; d++){
+      const e=wh[d];
+      if(e && typeof e==="object" && TIME_RE.test(e.start) && TIME_RE.test(e.end)) out[d]={start:e.start,end:e.end};
+    }
+    return out;
+  }
+
   function makeDefaultTabList(){
     return [
       {id:"work-goals", label:"Work Goals", color:"#2fa9a4", type:"goal", workDays:DEFAULT_WORK_DAYS.slice()},
@@ -462,7 +527,7 @@
     ];
   }
 
-  let state = { tabList: makeDefaultTabList(), tabs:{}, delegated:[], goalHistory:[], active:"work-goals" };
+  let state = { tabList: makeDefaultTabList(), tabs:{}, delegated:[], goalHistory:[], workHours: defaultWorkHours(), active:"work-goals" };
   state.tabList.forEach(t=>{ state.tabs[t.id]=[]; });
 
   let storageOK = null;   // null = unknown, true/false once verified
@@ -600,12 +665,13 @@
       tabList, tabs,
       delegated: Array.isArray(norm.delegated) ? norm.delegated : [],
       goalHistory: Array.isArray(norm.goalHistory) ? norm.goalHistory : [],
+      workHours: normalizeWorkHours(norm.workHours),
       active: tabList.some(t=>t.id===norm.active) ? norm.active : tabList[0].id
     };
   }
   function applyState(s){
     state.tabList=s.tabList; state.tabs=s.tabs; state.delegated=s.delegated;
-    state.goalHistory=s.goalHistory; state.active=s.active;
+    state.goalHistory=s.goalHistory; state.workHours=s.workHours; state.active=s.active;
   }
   function hydrate(p){
     const s=buildStateFrom(p);
@@ -774,6 +840,40 @@
   $("#manageClose").onclick=()=>manageScrim.classList.remove("show");
   manageScrim.onclick=e=>{ if(e.target===manageScrim) manageScrim.classList.remove("show"); };
 
+  /* ---------- Work hours ---------- */
+  const hoursScrim=$("#hoursScrim");
+  const DAY_ABBR=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  function renderHoursBody(){
+    const body=$("#hoursBody");
+    body.innerHTML=[0,1,2,3,4,5,6].map(d=>{
+      const e=state.workHours[d];
+      const on=!!e;
+      const start=e?e.start:"09:00", end=e?e.end:"17:00";
+      return `<div class="hours-row" data-d="${d}">
+        <button type="button" class="hours-day-toggle${on?" on":""}" data-role="toggle">${DAY_ABBR[d]}</button>
+        <input type="time" class="hours-time" data-role="start" value="${start}" ${on?"":"disabled"}>
+        <span class="hours-sep">–</span>
+        <input type="time" class="hours-time" data-role="end" value="${end}" ${on?"":"disabled"}>
+      </div>`;
+    }).join("");
+    body.querySelectorAll(".hours-row").forEach(row=>{
+      const d=parseInt(row.dataset.d,10);
+      const toggleBtn=row.querySelector('[data-role="toggle"]');
+      const startInp=row.querySelector('[data-role="start"]');
+      const endInp=row.querySelector('[data-role="end"]');
+      toggleBtn.onclick=()=>{
+        if(state.workHours[d]) delete state.workHours[d];
+        else state.workHours[d]={start:startInp.value||"09:00", end:endInp.value||"17:00"};
+        renderHoursBody(); renderList(); save();
+      };
+      startInp.onchange=()=>{ if(state.workHours[d] && TIME_RE.test(startInp.value)){ state.workHours[d].start=startInp.value; renderList(); save(); } };
+      endInp.onchange=()=>{ if(state.workHours[d] && TIME_RE.test(endInp.value)){ state.workHours[d].end=endInp.value; renderList(); save(); } };
+    });
+  }
+  $("#openHoursBtn").onclick=()=>{ renderHoursBody(); hoursScrim.classList.add("show"); };
+  $("#hoursClose").onclick=()=>hoursScrim.classList.remove("show");
+  hoursScrim.onclick=e=>{ if(e.target===hoursScrim) hoursScrim.classList.remove("show"); };
+
   /* ---------- Goal tabs ---------- */
   function updatePlaceholder(){
     const t=activeTab();
@@ -869,6 +969,19 @@
     if(!(target>0)) return null;
     return {target, unit:m[2].trim()||"goal"};
   }
+  function timeStrToMinutes(s){ const p=s.split(":"); return parseInt(p[0],10)*60+parseInt(p[1],10); }
+  // Hours remaining in *today's* office-hours window, for pacing a daily goal
+  // on a to-do. Returns null when today isn't a work day at all.
+  function hoursLeftToday(workHours){
+    const now=new Date();
+    const entry=workHours[now.getDay()];
+    if(!entry) return null;
+    const startMin=timeStrToMinutes(entry.start), endMin=timeStrToMinutes(entry.end);
+    if(endMin<=startMin) return null;
+    const nowMin=now.getHours()*60+now.getMinutes();
+    if(nowMin>=endMin) return 0;
+    return (endMin-Math.max(nowMin,startMin))/60;
+  }
   function goalBodyHtml(g,daysLeft){
     const remaining=Math.max(0,g.target-g.current);
     const achieved=g.target>0 && g.current>=g.target;
@@ -924,6 +1037,81 @@
     g.target=targetNum; g.unit=nu.trim()||g.unit;
     renderList(); save();
   }
+
+  /* ---------- Daily goal attached to a to-do (task tabs only) ---------- */
+  function taskBodyHtml(it){
+    const g=it.dailyGoal;
+    if(!g || !(g.target>0)){
+      return `<div class="body task-body">
+        <span class="task-text">${escapeHtml(it.text)}</span>
+        <button class="task-goal-add" data-role="dailyEdit" type="button" title="Set a goal for today" aria-label="Set a goal for today">◎</button>
+      </div>`;
+    }
+    const remaining=Math.max(0,g.target-g.current);
+    const achieved=g.current>=g.target;
+    const hrsLeft=hoursLeftToday(state.workHours);
+    let paceHtml;
+    if(achieved){
+      paceHtml=`<div class="daily-done">🎉 Today's goal met</div>`;
+    }else if(hrsLeft===null){
+      paceHtml=`<div class="daily-pace-note">Not a work day today</div>`;
+    }else if(hrsLeft<=0){
+      paceHtml=`<div class="daily-pace-note">Office hours are over for today</div>`;
+    }else{
+      paceHtml=`<div class="daily-pace-row"><b>${fmtNum(remaining/hrsLeft)}</b>/hr · ${fmtNum(hrsLeft)} hr${hrsLeft===1?"":"s"} left today</div>`;
+    }
+    const pct=g.target>0 ? Math.min(100,(g.current/g.target)*100) : 0;
+    return `<div class="body">
+      <div class="task-goal-text">${escapeHtml(it.text)}</div>
+      <div class="goal-bar"><div class="goal-fill" style="width:${pct}%"></div></div>
+      <div class="daily-stats"><b>${fmtNum(g.current)}</b>/${fmtNum(g.target)} ${escapeHtml(g.unit)} · ${fmtNum(remaining)} left</div>
+      ${paceHtml}
+      <div class="goal-current-row">
+        <span>Current</span>
+        <button class="goal-cur-btn" data-role="dailyCur" type="button">${fmtNum(g.current)}</button>
+        <button class="daily-goal-edit" data-role="dailyEdit" type="button" title="Edit today's goal" aria-label="Edit today's goal">✎</button>
+      </div>
+    </div>`;
+  }
+  function startEditDailyGoal(itemId){
+    const arr=state.tabs[state.active]||[];
+    const it=arr.find(x=>x.id===itemId);
+    if(!it) return;
+    const cur=it.dailyGoal;
+    const nt=prompt(cur?"Today's target (blank to remove):":"Today's target, e.g. 50 (blank to skip):", cur?cur.target:"");
+    if(nt===null) return;
+    const trimmed=nt.trim();
+    if(!trimmed){ delete it.dailyGoal; renderList(); save(); return; }
+    const targetNum=parseFloat(trimmed);
+    if(!(targetNum>0)){ alert("Enter a positive number."); return; }
+    const nu=prompt("What are you counting? (e.g. calls)", cur?cur.unit:"");
+    if(nu===null) return;
+    it.dailyGoal={target:targetNum, unit:nu.trim()||"done", current:cur?cur.current:0};
+    renderList(); save();
+  }
+  function startEditDailyCurrent(itemId,btnEl){
+    const arr=state.tabs[state.active]||[];
+    const it=arr.find(x=>x.id===itemId);
+    if(!it || !it.dailyGoal) return;
+    const inp=document.createElement("input");
+    inp.type="number"; inp.inputMode="decimal"; inp.className="goal-cur-input";
+    inp.value=it.dailyGoal.current;
+    btnEl.replaceWith(inp);
+    inp.focus(); inp.select();
+    let done=false;
+    const commit=()=>{
+      if(done) return; done=true;
+      const v=parseFloat(inp.value);
+      it.dailyGoal.current=isNaN(v)?it.dailyGoal.current:v;
+      renderList(); save();
+    };
+    inp.addEventListener("keydown",e=>{
+      if(e.key==="Enter") commit();
+      else if(e.key==="Escape"){ done=true; renderList(); }
+    });
+    inp.addEventListener("blur",commit);
+  }
+
   function openGoalHistory(){
     $("#goalHistTitle").textContent = tabLabel(state.active)+" history";
     renderGoalHistBody();
@@ -962,11 +1150,12 @@
     const daysLeft = isGoals ? workingDaysLeft(new Date(),t.workDays) : null;
     items.forEach((it,i)=>{
       const c=tabColor(state.active);
+      const hasDailyGoal = !isGoals && it.dailyGoal && it.dailyGoal.target>0;
       const el=document.createElement("div");
-      el.className="bubble"+(isGoals?" goal":"");
+      el.className="bubble"+(isGoals?" goal":"")+(hasDailyGoal?" has-daily-goal":"");
       el.dataset.id=it.id;
       el.style.setProperty("--tab-c",c);
-      const bodyHtml = isGoals ? goalBodyHtml(it,daysLeft) : `<div class="body">${escapeHtml(it.text)}</div>`;
+      const bodyHtml = isGoals ? goalBodyHtml(it,daysLeft) : taskBodyHtml(it);
       el.innerHTML=`
         <div class="handle" aria-label="Drag to reorder" title="Drag to reorder">
           <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>
@@ -983,6 +1172,11 @@
         if(curBtn) curBtn.onclick=(e)=>{ e.stopPropagation(); startEditCurrent(it.id,curBtn); };
         const editBtn=el.querySelector(".goal-edit");
         if(editBtn) editBtn.onclick=(e)=>{ e.stopPropagation(); startEditGoal(it.id); };
+      }else{
+        const dailyCurBtn=el.querySelector('[data-role="dailyCur"]');
+        if(dailyCurBtn) dailyCurBtn.onclick=(e)=>{ e.stopPropagation(); startEditDailyCurrent(it.id,dailyCurBtn); };
+        const dailyEditBtn=el.querySelector('[data-role="dailyEdit"]');
+        if(dailyEditBtn) dailyEditBtn.onclick=(e)=>{ e.stopPropagation(); startEditDailyGoal(it.id); };
       }
       listEl.appendChild(el);
     });
@@ -1173,7 +1367,10 @@
   }
   function decide(action){
     const t=review.queue[review.idx];
-    if(action==="keep") review.keep.push(t);
+    if(action==="keep"){
+      if(t.dailyGoal) t.dailyGoal.current=0; // fresh day, fresh tally
+      review.keep.push(t);
+    }
     else if(action==="drop") review.dropped++;
     else if(action==="deleg"){
       review.delegated++;
@@ -1234,7 +1431,7 @@
 
   /* ---------- export / import (manual cross-device transfer) ---------- */
   $("#exportBtn").onclick=()=>{
-    const payload=JSON.stringify({tabList:state.tabList,tabs:state.tabs,delegated:state.delegated,goalHistory:state.goalHistory,exportedAt:Date.now()},null,2);
+    const payload=JSON.stringify({tabList:state.tabList,tabs:state.tabs,delegated:state.delegated,goalHistory:state.goalHistory,workHours:state.workHours,exportedAt:Date.now()},null,2);
     const blob=new Blob([payload],{type:"application/json"});
     const url=URL.createObjectURL(blob);
     const a=document.createElement("a");
@@ -1277,6 +1474,8 @@
     $("#today").textContent = early ? label+" (still, until 5am)" : label;
   }
   setInterval(setToday,60000);
+  // Daily-goal pacing depends on the clock, so refresh it once a minute.
+  setInterval(()=>{ const t=activeTab(); if(t && t.type!=="goal") renderList(); },60000);
 
   function renderWarn(){
     const w=$("#warn");

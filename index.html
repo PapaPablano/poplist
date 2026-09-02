@@ -134,7 +134,7 @@
   .add button:hover{filter:brightness(1.05);}
   .add button:active{transform:scale(.96);}
   /* List */
-  .list{display:flex;flex-direction:column;gap:12px;position:relative;}
+  .list{display:flex;flex-direction:column;gap:10px;position:relative;}
   .bubble{
     position:relative;display:flex;align-items:stretch;gap:2px;
     background:linear-gradient(145deg,#ffffff 0%,#fbfcff 100%);
@@ -170,21 +170,21 @@
     display:flex;align-items:center;
   }
   /* Goal bubble contents */
-  .bubble.goal .body{flex-direction:column;align-items:stretch;padding:13px 10px 13px 0;gap:5px;}
-  .goal-top{display:flex;align-items:center;justify-content:space-between;gap:8px;}
-  .goal-unit{font-weight:700;font-size:.95rem;color:var(--ink);}
+  .bubble.goal .body{flex-direction:column;align-items:stretch;padding:11px 10px 11px 0;gap:4px;}
+  .goal-top{display:flex;align-items:center;gap:8px;}
+  .goal-unit{flex:1;min-width:0;font-weight:700;font-size:.95rem;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .goal-edit{
     flex:none;border:none;background:none;cursor:pointer;color:var(--ink-faint);
     font-size:.9rem;padding:2px 4px;line-height:1;
   }
   .goal-edit:hover{color:var(--tab-c);}
-  .goal-pace-wrap{text-align:center;padding:5px 0 3px;}
-  .goal-pace-num{font-family:"Nunito",sans-serif;font-weight:800;font-size:2.6rem;line-height:1;color:var(--tab-c);}
+  .goal-pace-wrap{text-align:center;padding:1px 0;}
+  .goal-pace-num{font-family:"Nunito",sans-serif;font-weight:800;font-size:1.9rem;line-height:1;color:var(--tab-c);}
   .goal-pace-cap{
-    font-family:"Nunito",sans-serif;font-weight:800;font-size:.72rem;letter-spacing:.09em;
-    text-transform:uppercase;color:var(--ink-faint);margin-top:3px;
+    font-family:"Nunito",sans-serif;font-weight:800;font-size:.68rem;letter-spacing:.09em;
+    text-transform:uppercase;color:var(--ink-faint);margin-top:1px;
   }
-  .goal-done{font-family:"Nunito",sans-serif;font-weight:800;color:var(--ok);font-size:1.15rem;text-align:center;padding:10px 0;}
+  .goal-done{font-family:"Nunito",sans-serif;font-weight:800;color:var(--ok);font-size:1.1rem;text-align:center;padding:6px 0;}
   .goal-stats{font-size:.82rem;color:var(--ink-faint);text-align:center;}
   .goal-stats b{color:var(--ink);font-weight:800;}
   .goal-bar{height:6px;border-radius:999px;background:var(--line);overflow:hidden;margin:2px 0;}
@@ -381,7 +381,7 @@
     opacity:.35;font-size:.95rem;padding:2px 4px;line-height:1;
   }
   .task-goal-add:hover{opacity:1;color:var(--tab-c);}
-  .bubble.has-daily-goal .body{flex-direction:column;align-items:stretch;padding:13px 10px 13px 0;gap:5px;}
+  .bubble.has-daily-goal .body{flex-direction:column;align-items:stretch;padding:11px 10px 11px 0;gap:4px;}
   .task-goal-text{font-size:1rem;line-height:1.35;color:var(--ink);word-break:break-word;}
   .daily-stats{font-size:.82rem;color:var(--ink-faint);text-align:center;}
   .daily-stats b{color:var(--ink);font-weight:800;}

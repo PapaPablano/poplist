@@ -178,11 +178,11 @@
     font-size:.9rem;padding:2px 4px;line-height:1;
   }
   .goal-edit:hover{color:var(--tab-c);}
-  .goal-pace-wrap{text-align:center;padding:1px 0;}
-  .goal-pace-num{font-family:"Nunito",sans-serif;font-weight:800;font-size:1.9rem;line-height:1;color:var(--tab-c);}
+  .goal-pace-wrap{text-align:center;padding:2px 0;}
+  .goal-pace-num{font-family:"Nunito",sans-serif;font-weight:800;font-size:1.3rem;color:var(--tab-c);}
   .goal-pace-cap{
-    font-family:"Nunito",sans-serif;font-weight:800;font-size:.68rem;letter-spacing:.09em;
-    text-transform:uppercase;color:var(--ink-faint);margin-top:1px;
+    font-family:"Nunito",sans-serif;font-weight:700;font-size:.8rem;
+    text-transform:none;color:var(--ink-faint);margin-left:5px;
   }
   .goal-done{font-family:"Nunito",sans-serif;font-weight:800;color:var(--ok);font-size:1.1rem;text-align:center;padding:6px 0;}
   .goal-stats{font-size:.82rem;color:var(--ink-faint);text-align:center;}
@@ -1026,7 +1026,7 @@
       </div>
       ${achieved
         ? `<div class="goal-done">🎉 Goal met</div>`
-        : `<div class="goal-pace-wrap"><div class="goal-pace-num">${fmtNum(perDay)}</div><div class="goal-pace-cap">Per day</div></div>`}
+        : `<div class="goal-pace-wrap"><span class="goal-pace-num">${fmtNum(perDay)}</span><span class="goal-pace-cap">per day</span></div>`}
       <div class="goal-bar"><div class="goal-fill" style="width:${pct}%"></div></div>
       <div class="goal-stats"><b>${fmtNum(g.current)}</b>/${fmtNum(g.target)} · ${fmtNum(remaining)} left · ${daysLabel}</div>
       <div class="goal-current-row">

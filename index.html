@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
   :root{
     --bg-1:#eef2f8;
@@ -315,7 +316,7 @@
     flex:none;font-size:.7rem;font-weight:700;font-family:"Nunito",sans-serif;
     padding:3px 9px;border-radius:999px;background:var(--accent-soft);color:var(--accent);white-space:nowrap;
   }
-  .sheet-foot{padding:12px 22px 20px;display:flex;gap:10px;}
+  .sheet-foot{padding:12px 22px 20px;display:flex;flex-wrap:wrap;gap:10px;}
   .sheet-foot .btn{flex:1;}
   .btn-ghost{background:#f4f6fa;color:var(--ink-soft);}
   .btn-ghost:hover{background:#eceff5;color:var(--ink);}
@@ -373,6 +374,19 @@
   }
   .hours-time:disabled{opacity:.4;}
   .hours-sep{color:var(--ink-faint);flex:none;}
+  /* Google Tasks sync sheet */
+  .gsync-field{margin:0 0 14px;}
+  .gsync-field label{display:block;font-weight:700;font-size:.82rem;color:var(--ink-soft);margin:0 0 6px;}
+  .gsync-field input,.gsync-field select{
+    width:100%;border:1px solid var(--line);border-radius:12px;padding:11px 14px;
+    font-size:.92rem;font-family:inherit;color:var(--ink);outline:none;background:#fff;
+  }
+  .gsync-field input:focus,.gsync-field select:focus{border-color:var(--accent);}
+  .gsync-status{font-size:.84rem;color:var(--ink-soft);margin:0 0 14px;line-height:1.4;}
+  .gsync-status b{color:var(--ink);}
+  .gsync-status.err{color:var(--danger);}
+  .gsync-actions{display:flex;flex-wrap:wrap;gap:8px;}
+  .gsync-actions .btn{flex:1;min-width:110px;}
   /* Task-attached daily goal */
   .task-body{display:flex;align-items:center;justify-content:space-between;gap:8px;}
   .task-text{flex:1;min-width:0;}
@@ -497,8 +511,9 @@
     </div>
     <div class="log-body" id="manageBody"></div>
     <div class="sheet-foot">
-      <button class="btn btn-ghost" id="openHoursBtn">Work hours</button>
-      <button class="btn btn-solid" id="manageClose">Done</button>
+      <button class="btn btn-ghost" id="openHoursBtn" style="flex-basis:calc(50% - 5px);">Work hours</button>
+      <button class="btn btn-ghost" id="openGoogleSyncBtn" style="flex-basis:calc(50% - 5px);">Google Tasks</button>
+      <button class="btn btn-solid" id="manageClose" style="flex-basis:100%;">Done</button>
     </div>
   </div>
 </div>
@@ -513,6 +528,20 @@
     <div class="log-body" id="hoursBody"></div>
     <div class="sheet-foot">
       <button class="btn btn-solid" id="hoursClose">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- Google Tasks sync overlay -->
+<div class="scrim" id="gsyncScrim">
+  <div class="sheet">
+    <div class="sheet-head">
+      <h2>Google Tasks sync</h2>
+      <p>Pulls new tasks from Google Tasks into a tab here. Runs automatically when it can, but your browser may need you to tap "Sync now" instead of popping up sign-in on its own. One-directional — nothing is ever sent back to Google.</p>
+    </div>
+    <div class="log-body" id="gsyncBody"></div>
+    <div class="sheet-foot">
+      <button class="btn btn-solid" id="gsyncClose">Done</button>
     </div>
   </div>
 </div>
@@ -544,6 +573,19 @@
     return out;
   }
 
+  // Google Tasks one-way sync config. clientId/tabId are set by the user in
+  // the Google Tasks sheet; importedIds dedupes across repeated syncs so the
+  // same Google task never lands twice.
+  function defaultGoogleSync(){ return {clientId:"", tabId:null, importedIds:[]}; }
+  function normalizeGoogleSync(gs){
+    if(!gs || typeof gs!=="object") return defaultGoogleSync();
+    return {
+      clientId: typeof gs.clientId==="string" ? gs.clientId.trim() : "",
+      tabId: typeof gs.tabId==="string" ? gs.tabId : null,
+      importedIds: Array.isArray(gs.importedIds) ? gs.importedIds.filter(x=>typeof x==="string") : []
+    };
+  }
+
   function makeDefaultTabList(){
     return [
       {id:"work-goals", label:"Work Goals", color:"#2fa9a4", type:"goal", workDays:DEFAULT_WORK_DAYS.slice()},
@@ -554,7 +596,7 @@
     ];
   }
 
-  let state = { tabList: makeDefaultTabList(), tabs:{}, delegated:[], goalHistory:[], workHours: defaultWorkHours(), active:"work-goals" };
+  let state = { tabList: makeDefaultTabList(), tabs:{}, delegated:[], goalHistory:[], workHours: defaultWorkHours(), googleSync: defaultGoogleSync(), active:"work-goals" };
   state.tabList.forEach(t=>{ state.tabs[t.id]=[]; });
 
   let storageOK = null;   // null = unknown, true/false once verified
@@ -693,12 +735,14 @@
       delegated: Array.isArray(norm.delegated) ? norm.delegated : [],
       goalHistory: Array.isArray(norm.goalHistory) ? norm.goalHistory : [],
       workHours: normalizeWorkHours(norm.workHours),
+      googleSync: normalizeGoogleSync(norm.googleSync),
       active: tabList.some(t=>t.id===norm.active) ? norm.active : tabList[0].id
     };
   }
   function applyState(s){
     state.tabList=s.tabList; state.tabs=s.tabs; state.delegated=s.delegated;
-    state.goalHistory=s.goalHistory; state.workHours=s.workHours; state.active=s.active;
+    state.goalHistory=s.goalHistory; state.workHours=s.workHours; state.googleSync=s.googleSync;
+    state.active=s.active;
   }
   function hydrate(p){
     const s=buildStateFrom(p);
@@ -904,6 +948,158 @@
   $("#openHoursBtn").onclick=()=>{ renderHoursBody(); hoursScrim.classList.add("show"); };
   $("#hoursClose").onclick=()=>hoursScrim.classList.remove("show");
   hoursScrim.onclick=e=>{ if(e.target===hoursScrim) hoursScrim.classList.remove("show"); };
+
+  /* ---------- Google Tasks sync (one-way pull, foreground only — no backend) ---------- */
+  const gsyncScrim=$("#gsyncScrim");
+  let gsiTokenClient=null, gsiTokenClientId=null;
+  function waitForGoogleIdentity(ms){
+    return new Promise(res=>{
+      const t0=Date.now();
+      (function poll(){
+        if(window.google && window.google.accounts && window.google.accounts.oauth2) return res(true);
+        if(Date.now()-t0>ms) return res(false);
+        setTimeout(poll,150);
+      })();
+    });
+  }
+  function taskTabOptionsHtml(selectedId){
+    return state.tabList.filter(t=>t.type!=="goal").map(t=>
+      `<option value="${t.id}" ${t.id===selectedId?"selected":""}>${escapeHtml(t.label)}</option>`
+    ).join("");
+  }
+  function gsyncSetStatus(msg,isErr){
+    const el=$("#gsyncStatus");
+    if(!el) return;
+    el.textContent=msg;
+    el.classList.toggle("err",!!isErr);
+  }
+  function renderGsyncBody(){
+    const body=$("#gsyncBody");
+    const gs=state.googleSync;
+    const connected=!!(gs.clientId && gs.tabId);
+    if(!state.tabList.some(t=>t.type!=="goal")){
+      body.innerHTML=`<div class="gsync-status">You need at least one task tab (not a goal tab) before you can set up a sync target.</div>`;
+      return;
+    }
+    body.innerHTML=`
+      <div class="gsync-field">
+        <label>Google OAuth Client ID</label>
+        <input type="text" id="gsyncClientId" placeholder="xxxx.apps.googleusercontent.com" value="${escapeHtml(gs.clientId)}">
+      </div>
+      <div class="gsync-field">
+        <label>Sync new Google Tasks into</label>
+        <select id="gsyncTabSelect">${taskTabOptionsHtml(gs.tabId)}</select>
+      </div>
+      <div class="gsync-status" id="gsyncStatus">${connected ? "Connected. Tap “Sync now”, or it’ll try again automatically next time you open Poplist." : "Not connected yet."}</div>
+      <div class="gsync-actions">
+        <button type="button" class="btn btn-solid" id="gsyncConnectBtn">${connected?"Reconnect":"Connect"}</button>
+        <button type="button" class="btn btn-ghost" id="gsyncSyncBtn" ${connected?"":"disabled"}>Sync now</button>
+        <button type="button" class="btn btn-ghost" id="gsyncDisconnectBtn" ${gs.clientId?"":"disabled"}>Disconnect</button>
+      </div>`;
+    $("#gsyncConnectBtn").onclick=gsyncConnect;
+    $("#gsyncSyncBtn").onclick=()=>gsyncSyncNow(false);
+    $("#gsyncDisconnectBtn").onclick=gsyncDisconnect;
+  }
+  async function ensureTokenClient(clientId){
+    const ready=await waitForGoogleIdentity(4000);
+    if(!ready) throw new Error("Google sign-in script hasn't loaded yet — check your connection and try again.");
+    if(!gsiTokenClient || gsiTokenClientId!==clientId){
+      gsiTokenClient=window.google.accounts.oauth2.initTokenClient({
+        client_id: clientId,
+        scope: "https://www.googleapis.com/auth/tasks.readonly",
+        callback: ()=>{}
+      });
+      gsiTokenClientId=clientId;
+    }
+    return gsiTokenClient;
+  }
+  function requestGoogleToken(clientId,prompt){
+    return new Promise((resolve,reject)=>{
+      ensureTokenClient(clientId).then(client=>{
+        client.callback=(resp)=>{
+          if(resp && resp.error) reject(new Error(resp.error));
+          else if(resp && resp.access_token) resolve(resp.access_token);
+          else reject(new Error("No access token returned."));
+        };
+        try{ client.requestAccessToken({prompt}); }
+        catch(e){ reject(e); }
+      }).catch(reject);
+    });
+  }
+  async function gsyncConnect(){
+    const clientIdInp=$("#gsyncClientId"), tabSelect=$("#gsyncTabSelect");
+    const clientId=clientIdInp.value.trim();
+    const tabId=tabSelect.value;
+    if(!clientId){ gsyncSetStatus("Paste your Google OAuth Client ID first.",true); return; }
+    if(!tabId){ gsyncSetStatus("Pick a tab to sync into first.",true); return; }
+    state.googleSync.clientId=clientId;
+    state.googleSync.tabId=tabId;
+    save();
+    gsyncSetStatus("Opening Google sign-in…");
+    try{
+      const token=await requestGoogleToken(clientId,"consent");
+      const added=await gsyncImport(token);
+      renderGsyncBody();
+      gsyncSetStatus(added>0 ? `Synced — added ${added} new task${added===1?"":"s"}.` : "Synced — nothing new.");
+    }catch(e){
+      gsyncSetStatus("Couldn't connect: "+e.message,true);
+    }
+  }
+  async function gsyncSyncNow(silent){
+    const gs=state.googleSync;
+    if(!gs.clientId || !gs.tabId) return;
+    if(!silent) gsyncSetStatus("Syncing…");
+    try{
+      const token=await requestGoogleToken(gs.clientId, silent?"none":"");
+      const added=await gsyncImport(token);
+      if(!silent){
+        renderGsyncBody();
+        gsyncSetStatus(added>0 ? `Synced — added ${added} new task${added===1?"":"s"}.` : "Synced — nothing new.");
+      }
+    }catch(e){
+      if(!silent) gsyncSetStatus("Sync failed: "+e.message+" — try Connect again.",true);
+    }
+  }
+  // Fetches and imports new Google Tasks; returns how many were added.
+  // Does not touch #gsyncStatus itself — callers decide when it's safe to
+  // show the result without a following renderGsyncBody() wiping it out.
+  async function gsyncImport(token){
+    const gs=state.googleSync;
+    const res=await fetch("https://tasks.googleapis.com/tasks/v1/lists/@default/tasks?showCompleted=false&maxResults=100",{
+      headers:{Authorization:"Bearer "+token}
+    });
+    if(!res.ok) throw new Error("Google Tasks API returned "+res.status);
+    const data=await res.json();
+    const items=Array.isArray(data.items) ? data.items : [];
+    const seen=new Set(gs.importedIds);
+    let added=0;
+    items.forEach(item=>{
+      if(!item.id || seen.has(item.id)) return;
+      if(item.status==="completed") return;
+      const title=(item.title||"").trim();
+      if(!title) return;
+      (state.tabs[gs.tabId]=state.tabs[gs.tabId]||[]).push({id:uid(),text:title,createdAt:Date.now(),googleTaskId:item.id});
+      seen.add(item.id);
+      added++;
+    });
+    gs.importedIds=Array.from(seen);
+    if(added>0){ renderTabs(); if(state.active===gs.tabId) renderList(); }
+    save();
+    return added;
+  }
+  function gsyncDisconnect(){
+    state.googleSync.clientId="";
+    state.googleSync.tabId=null;
+    save();
+    renderGsyncBody();
+  }
+  function trySilentGoogleSyncIfConfigured(){
+    const gs=state.googleSync;
+    if(gs.clientId && gs.tabId) gsyncSyncNow(true).catch(()=>{});
+  }
+  $("#openGoogleSyncBtn").onclick=()=>{ renderGsyncBody(); gsyncScrim.classList.add("show"); };
+  $("#gsyncClose").onclick=()=>gsyncScrim.classList.remove("show");
+  gsyncScrim.onclick=e=>{ if(e.target===gsyncScrim) gsyncScrim.classList.remove("show"); };
 
   /* ---------- Goal tabs ---------- */
   function updatePlaceholder(){
@@ -1462,7 +1658,7 @@
 
   /* ---------- export / import (manual cross-device transfer) ---------- */
   $("#exportBtn").onclick=()=>{
-    const payload=JSON.stringify({tabList:state.tabList,tabs:state.tabs,delegated:state.delegated,goalHistory:state.goalHistory,workHours:state.workHours,exportedAt:Date.now()},null,2);
+    const payload=JSON.stringify({tabList:state.tabList,tabs:state.tabs,delegated:state.delegated,goalHistory:state.goalHistory,workHours:state.workHours,googleSync:state.googleSync,exportedAt:Date.now()},null,2);
     const blob=new Blob([payload],{type:"application/json"});
     const url=URL.createObjectURL(blob);
     const a=document.createElement("a");
@@ -1507,6 +1703,9 @@
   setInterval(setToday,60000);
   // Daily-goal pacing depends on the clock, so refresh it once a minute.
   setInterval(()=>{ const t=activeTab(); if(t && t.type!=="goal") renderList(); },60000);
+  // Retry Google Tasks sync periodically while the tab stays open — there's
+  // no backend to push to us, so this is the closest thing to "automatic".
+  setInterval(trySilentGoogleSyncIfConfigured,5*60*1000);
 
   function renderWarn(){
     const w=$("#warn");
@@ -1540,6 +1739,7 @@
     updatePlaceholder();
     renderWarn();
     if(!isEmpty(state)) backup();
+    trySilentGoogleSyncIfConfigured();
   })();
 })();
 </script>

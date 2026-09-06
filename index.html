@@ -24,6 +24,7 @@
     font-size:16px;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  button:disabled,input:disabled,select:disabled{cursor:not-allowed;opacity:.5;}
   html,body{margin:0;height:100%;height:100dvh;}
   body{
     font-family:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
@@ -55,6 +56,17 @@
   }
   .tagline{color:var(--ink-soft);font-size:.9rem;margin:6px 0 0 26px;}
   .today{color:var(--ink-faint);font-size:.82rem;margin:2px 0 0 26px;letter-spacing:.01em;}
+  .user-switcher{
+    display:flex;align-items:center;gap:8px;margin:10px 0 0 26px;font-size:.8rem;color:var(--ink-soft);
+  }
+  .user-switcher select{
+    border:1px solid var(--line);background:#fff;border-radius:999px;
+    padding:5px 10px;font-size:.8rem;font-family:inherit;color:var(--ink);cursor:pointer;
+  }
+  .role-badge{
+    font-family:"Nunito",sans-serif;font-weight:800;font-size:.68rem;letter-spacing:.03em;
+    text-transform:uppercase;padding:2px 8px;border-radius:999px;background:var(--accent-soft);color:var(--accent);
+  }
   /* Notices */
   .notice{
     display:flex;gap:10px;align-items:flex-start;
@@ -136,6 +148,12 @@
   .add button:active{transform:scale(.96);}
   /* List */
   .list{display:flex;flex-direction:column;gap:10px;position:relative;}
+  /* Role-based UI locks — see PERMISSIONS in the script. */
+  .list.locked-pop .pop{display:none;}
+  .list.locked-drag .handle{visibility:hidden;pointer-events:none;}
+  .list.locked-target .goal-edit,.list.locked-target .daily-goal-edit,.list.locked-target .task-goal-add{display:none;}
+  .list.locked-progress .goal-cur-btn{pointer-events:none;opacity:.5;}
+  #manageBody.locked .mr-actions,#manageBody.locked .manage-add{display:none;}
   .bubble{
     position:relative;display:flex;align-items:stretch;gap:2px;
     background:linear-gradient(145deg,#ffffff 0%,#fbfcff 100%);
@@ -437,6 +455,11 @@
     <div class="brand"><span class="dot"></span>Poplist</div>
     <div class="tagline">Pop it when it's done.</div>
     <div class="today" id="today"></div>
+    <div class="user-switcher">
+      <label for="userSelect">Acting as</label>
+      <select id="userSelect"></select>
+      <span class="role-badge" id="roleBadge"></span>
+    </div>
   </header>
 
   <div id="warn"></div>
@@ -555,6 +578,30 @@
   const DEFAULT_WORK_DAYS = [2,3,4,5,6]; // Tue-Sat; Sun(0)/Mon(1) off by default
   const PALETTE = ["#2fa9a4","#c76fa0","#5b8def","#5aa87c","#a07bd4","#e0a23c","#d16a6a","#6d9dc5"];
 
+  // Test users for exercising role-based permissions. This is a client-only
+  // sandbox (no accounts/auth) — switching "Acting as" previews what each
+  // role can see and do; it doesn't protect data from anyone with the file.
+  const USERS = [
+    {id:"u-viewer", name:"Alice", role:"viewer"},
+    {id:"u-editor", name:"Bob",   role:"editor"},
+    {id:"u-admin",  name:"Charlie", role:"admin"}
+  ];
+  const ROLE_LABEL = {viewer:"Viewer", editor:"Editor", admin:"Admin"};
+  // Popping a task/goal here means removing it for good, and the new-day
+  // review can drop items permanently too, so both sit behind admin like a
+  // delete action would — editors can add and update progress but not
+  // remove things or touch shared settings.
+  const PERMISSIONS = {
+    viewer: [],
+    editor: ["CREATE_ITEM","UPDATE_PROGRESS","REORDER"],
+    admin:  ["CREATE_ITEM","UPDATE_PROGRESS","REORDER","POP_ITEM","EDIT_GOAL_TARGET",
+             "NEW_DAY_REVIEW","MANAGE_TABS","CLEAR_LOG","CLEAR_HISTORY","WORK_HOURS","GOOGLE_SYNC","IMPORT"]
+  };
+  function defaultUserId(){ return USERS[USERS.length-1].id; } // admin, so existing single-user behavior is unaffected by default
+  function normalizeUserId(id){ return USERS.some(u=>u.id===id) ? id : defaultUserId(); }
+  function currentUser(){ return USERS.find(u=>u.id===state.userId) || USERS[USERS.length-1]; }
+  function can(action){ return (PERMISSIONS[currentUser().role]||[]).includes(action); }
+
   // Office hours per weekday (0=Sun..6=Sat), used to pace daily goals attached
   // to to-dos. A day with no entry is treated as not a work day.
   function defaultWorkHours(){
@@ -596,7 +643,7 @@
     ];
   }
 
-  let state = { tabList: makeDefaultTabList(), tabs:{}, delegated:[], goalHistory:[], workHours: defaultWorkHours(), googleSync: defaultGoogleSync(), active:"work-goals" };
+  let state = { tabList: makeDefaultTabList(), tabs:{}, delegated:[], goalHistory:[], workHours: defaultWorkHours(), googleSync: defaultGoogleSync(), active:"work-goals", userId: "u-admin" };
   state.tabList.forEach(t=>{ state.tabs[t.id]=[]; });
 
   let storageOK = null;   // null = unknown, true/false once verified
@@ -736,13 +783,14 @@
       goalHistory: Array.isArray(norm.goalHistory) ? norm.goalHistory : [],
       workHours: normalizeWorkHours(norm.workHours),
       googleSync: normalizeGoogleSync(norm.googleSync),
-      active: tabList.some(t=>t.id===norm.active) ? norm.active : tabList[0].id
+      active: tabList.some(t=>t.id===norm.active) ? norm.active : tabList[0].id,
+      userId: normalizeUserId(norm.userId)
     };
   }
   function applyState(s){
     state.tabList=s.tabList; state.tabs=s.tabs; state.delegated=s.delegated;
     state.goalHistory=s.goalHistory; state.workHours=s.workHours; state.googleSync=s.googleSync;
-    state.active=s.active;
+    state.active=s.active; state.userId=s.userId;
   }
   function hydrate(p){
     const s=buildStateFrom(p);
@@ -798,6 +846,37 @@
   }
   function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
 
+  /* ---------- test users / role permissions ---------- */
+  function renderUserSwitcher(){
+    const sel=$("#userSelect");
+    if(sel.options.length!==USERS.length){
+      sel.innerHTML=USERS.map(u=>`<option value="${u.id}">${escapeHtml(u.name)} (${ROLE_LABEL[u.role]})</option>`).join("");
+      sel.onchange=()=>{
+        state.userId=normalizeUserId(sel.value);
+        save();
+        renderUserSwitcher(); applyAccent(); renderTabs(); renderList();
+        renderGoalSettings(); updateFooter(); updatePlaceholder();
+      };
+    }
+    sel.value=state.userId;
+    $("#roleBadge").textContent=ROLE_LABEL[currentUser().role];
+  }
+  // Disables/hides controls the current role can't use. Item-level controls
+  // (pop, drag handle, goal edit/progress) are locked via CSS classes on
+  // #list, toggled from renderList() since they depend on what's rendered.
+  function applyPermissionUI(){
+    const canCreate=can("CREATE_ITEM");
+    input.disabled=!canCreate;
+    $("#addBtn").disabled=!canCreate;
+    addToggleBtn.disabled=!canCreate;
+    $("#openHoursBtn").disabled=!can("WORK_HOURS");
+    $("#openGoogleSyncBtn").disabled=!can("GOOGLE_SYNC");
+    $("#importBtn").disabled=!can("IMPORT");
+    const t=activeTab();
+    const dayBtn=$("#newDayBtn");
+    dayBtn.disabled = !!(t && t.type!=="goal" && !can("NEW_DAY_REVIEW"));
+  }
+
   /* ---------- render ---------- */
   const listEl=$("#list");
   const tabsEl=$("#tabs");
@@ -831,6 +910,7 @@
   let newTabType="task";
   function renderManageBody(){
     const body=$("#manageBody");
+    body.classList.toggle("locked", !can("MANAGE_TABS"));
     const rows=state.tabList.map((t,i)=>`
       <div class="manage-row" data-id="${t.id}">
         <div class="mr-main">
@@ -873,6 +953,7 @@
     };
   }
   function addTab(name,type){
+    if(!can("MANAGE_TABS")) return;
     const id="t"+uid();
     const color=PALETTE[state.tabList.length % PALETTE.length];
     const t={id,label:name,color,type:(type==="goal"?"goal":"task")};
@@ -883,6 +964,7 @@
     renderTabs(); applyAccent(); renderList(); renderGoalSettings(); updateFooter(); updatePlaceholder(); save();
   }
   function handleManageAction(id,act){
+    if(!can("MANAGE_TABS")) return;
     const idx=state.tabList.findIndex(t=>t.id===id);
     if(idx<0) return;
     if(act==="up" && idx>0){
@@ -937,12 +1019,13 @@
       const startInp=row.querySelector('[data-role="start"]');
       const endInp=row.querySelector('[data-role="end"]');
       toggleBtn.onclick=()=>{
+        if(!can("WORK_HOURS")) return;
         if(state.workHours[d]) delete state.workHours[d];
         else state.workHours[d]={start:startInp.value||"09:00", end:endInp.value||"17:00"};
         renderHoursBody(); renderList(); save();
       };
-      startInp.onchange=()=>{ if(state.workHours[d] && TIME_RE.test(startInp.value)){ state.workHours[d].start=startInp.value; renderList(); save(); } };
-      endInp.onchange=()=>{ if(state.workHours[d] && TIME_RE.test(endInp.value)){ state.workHours[d].end=endInp.value; renderList(); save(); } };
+      startInp.onchange=()=>{ if(can("WORK_HOURS") && state.workHours[d] && TIME_RE.test(startInp.value)){ state.workHours[d].start=startInp.value; renderList(); save(); } };
+      endInp.onchange=()=>{ if(can("WORK_HOURS") && state.workHours[d] && TIME_RE.test(endInp.value)){ state.workHours[d].end=endInp.value; renderList(); save(); } };
     });
   }
   $("#openHoursBtn").onclick=()=>{ renderHoursBody(); hoursScrim.classList.add("show"); };
@@ -1027,6 +1110,7 @@
     });
   }
   async function gsyncConnect(){
+    if(!can("GOOGLE_SYNC")) return;
     const clientIdInp=$("#gsyncClientId"), tabSelect=$("#gsyncTabSelect");
     const clientId=clientIdInp.value.trim();
     const tabId=tabSelect.value;
@@ -1088,6 +1172,7 @@
     return added;
   }
   function gsyncDisconnect(){
+    if(!can("GOOGLE_SYNC")) return;
     state.googleSync.clientId="";
     state.googleSync.tabId=null;
     save();
@@ -1119,6 +1204,7 @@
       dayBtn.textContent="Start a new day";
       logBtn.style.display="";
     }
+    applyPermissionUI();
   }
   function workDaysSummary(workDays){
     const abbr=["Su","Mo","Tu","We","Th","Fr","Sa"];
@@ -1232,6 +1318,7 @@
     </div>`;
   }
   function startEditCurrent(goalId,btnEl){
+    if(!can("UPDATE_PROGRESS")) return;
     const g=(state.tabs[state.active]||[]).find(x=>x.id===goalId);
     if(!g) return;
     const inp=document.createElement("input");
@@ -1253,6 +1340,7 @@
     inp.addEventListener("blur",commit);
   }
   function startEditGoal(goalId){
+    if(!can("EDIT_GOAL_TARGET")) return;
     const g=(state.tabs[state.active]||[]).find(x=>x.id===goalId);
     if(!g) return;
     const nt=prompt("Target amount:",g.target);
@@ -1301,6 +1389,7 @@
     </div>`;
   }
   function startEditDailyGoal(itemId){
+    if(!can("EDIT_GOAL_TARGET")) return;
     const arr=state.tabs[state.active]||[];
     const it=arr.find(x=>x.id===itemId);
     if(!it) return;
@@ -1317,6 +1406,7 @@
     renderList(); save();
   }
   function startEditDailyCurrent(itemId,btnEl){
+    if(!can("UPDATE_PROGRESS")) return;
     const arr=state.tabs[state.active]||[];
     const it=arr.find(x=>x.id===itemId);
     if(!it || !it.dailyGoal) return;
@@ -1342,6 +1432,7 @@
   function openGoalHistory(){
     $("#goalHistTitle").textContent = tabLabel(state.active)+" history";
     renderGoalHistBody();
+    $("#goalHistClear").disabled=!can("CLEAR_HISTORY");
     goalHistScrim.classList.add("show");
   }
   function renderGoalHistBody(){
@@ -1363,6 +1454,10 @@
     const t=activeTab();
     const items=state.tabs[state.active]||[];
     const isGoals = !!(t && t.type==="goal");
+    listEl.classList.toggle("locked-pop", !can("POP_ITEM"));
+    listEl.classList.toggle("locked-drag", !can("REORDER"));
+    listEl.classList.toggle("locked-target", !can("EDIT_GOAL_TARGET"));
+    listEl.classList.toggle("locked-progress", !can("UPDATE_PROGRESS"));
     listEl.innerHTML="";
     if(isGoals) checkGoalRollover();
     if(!items.length){
@@ -1412,6 +1507,7 @@
   /* ---------- add ---------- */
   const input=$("#taskInput");
   function addTask(){
+    if(!can("CREATE_ITEM")) return;
     const v=input.value.trim();
     if(!v) return;
     const t=activeTab();
@@ -1444,6 +1540,7 @@
 
   /* ---------- pop / complete ---------- */
   function popTask(id,el){
+    if(!can("POP_ITEM")) return;
     if(el.classList.contains("popping")) return;
     burst(el);
     el.classList.add("popping");
@@ -1481,6 +1578,7 @@
   let drag=null;
   const GAP=12;
   function startDrag(e,el){
+    if(!can("REORDER")) return;
     e.preventDefault();
     const nodes=[...listEl.querySelectorAll(".bubble")];
     const from=nodes.indexOf(el);
@@ -1539,6 +1637,7 @@
   $("#newDayBtn").onclick=()=>{
     const t=activeTab();
     if(t && t.type==="goal"){ openGoalHistory(); return; }
+    if(!can("NEW_DAY_REVIEW")) return;
     const items=state.tabs[state.active]||[];
     if(!items.length){ flashEmptyDay(); return; }
     backup(); // keep a copy of the pre-review board
@@ -1634,10 +1733,12 @@
         </div>`;
       }).join("");
     }
+    $("#logClear").disabled=!can("CLEAR_LOG");
     logScrim.classList.add("show");
   };
   $("#logClose").onclick=()=>logScrim.classList.remove("show");
   $("#logClear").onclick=()=>{
+    if(!can("CLEAR_LOG")) return;
     if(!state.delegated.length){ logScrim.classList.remove("show"); return; }
     state.delegated=[]; renderLogCount(); save();
     $("#logBody").innerHTML=`<div class="log-empty">Log cleared.</div>`;
@@ -1648,6 +1749,7 @@
   const goalHistScrim=$("#goalHistScrim");
   $("#goalHistClose").onclick=()=>goalHistScrim.classList.remove("show");
   $("#goalHistClear").onclick=()=>{
+    if(!can("CLEAR_HISTORY")) return;
     const items=state.goalHistory.filter(h=>h.tabId===state.active);
     if(!items.length){ goalHistScrim.classList.remove("show"); return; }
     state.goalHistory=state.goalHistory.filter(h=>h.tabId!==state.active);
@@ -1669,6 +1771,7 @@
   };
   $("#importBtn").onclick=()=>$("#importFile").click();
   $("#importFile").addEventListener("change",e=>{
+    if(!can("IMPORT")){ e.target.value=""; return; }
     const file=e.target.files[0];
     if(!file) return;
     const reader=new FileReader();
@@ -1678,6 +1781,7 @@
         const s=buildStateFrom(p);
         if(!s) throw new Error("bad file");
         applyState(s);
+        renderUserSwitcher();
         renderTabs(); renderList(); renderLogCount(); renderGoalSettings(); updateFooter(); updatePlaceholder(); applyAccent(); save(); backup();
         alert("Backup loaded.");
       }catch(err){ alert("That file doesn't look like a Poplist backup."); }
@@ -1731,6 +1835,7 @@
     await load();
     checkGoalRollover();
     applyAccent();
+    renderUserSwitcher();
     renderTabs();
     renderList();
     renderLogCount();

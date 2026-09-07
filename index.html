@@ -561,7 +561,7 @@
   <div class="sheet">
     <div class="sheet-head">
       <h2>Google Tasks sync</h2>
-      <p>Pulls new tasks from Google Tasks into a tab here each time you load or reload Poplist — no automatic background refresh in between. Your browser may need you to tap "Sync now" instead, if it can't refresh silently on load. One-directional — nothing is ever sent back to Google.</p>
+      <p>Keeps a tab here and a Google Tasks list mirrored both ways — new tasks and completions move in either direction each time you load or reload Poplist, or tap "Sync now". No automatic background refresh in between; your browser may need you to tap "Sync now" instead, if it can't refresh silently on load. Previously-connected accounts need to tap "Reconnect" once to grant write access.</p>
     </div>
     <div class="log-body" id="gsyncBody"></div>
     <div class="sheet-foot">
@@ -621,16 +621,19 @@
     return out;
   }
 
-  // Google Tasks one-way sync config. clientId/tabId are set by the user in
+  // Google Tasks two-way sync config. clientId/tabId are set by the user in
   // the Google Tasks sheet; importedIds dedupes across repeated syncs so the
-  // same Google task never lands twice.
-  function defaultGoogleSync(){ return {clientId:"", tabId:null, importedIds:[]}; }
+  // same Google task never lands twice; pendingCompletions holds Google task
+  // ids whose local item was already removed (popped/dropped/delegated)
+  // before we could push the completion, so it survives reloads/offline.
+  function defaultGoogleSync(){ return {clientId:"", tabId:null, importedIds:[], pendingCompletions:[]}; }
   function normalizeGoogleSync(gs){
     if(!gs || typeof gs!=="object") return defaultGoogleSync();
     return {
       clientId: typeof gs.clientId==="string" ? gs.clientId.trim() : "",
       tabId: typeof gs.tabId==="string" ? gs.tabId : null,
-      importedIds: Array.isArray(gs.importedIds) ? gs.importedIds.filter(x=>typeof x==="string") : []
+      importedIds: Array.isArray(gs.importedIds) ? gs.importedIds.filter(x=>typeof x==="string") : [],
+      pendingCompletions: Array.isArray(gs.pendingCompletions) ? gs.pendingCompletions.filter(x=>typeof x==="string") : []
     };
   }
 
@@ -1033,7 +1036,7 @@
   $("#hoursClose").onclick=()=>hoursScrim.classList.remove("show");
   hoursScrim.onclick=e=>{ if(e.target===hoursScrim) hoursScrim.classList.remove("show"); };
 
-  /* ---------- Google Tasks sync (one-way pull, foreground only — no backend) ---------- */
+  /* ---------- Google Tasks sync (two-way, foreground only — no backend) ---------- */
   const gsyncScrim=$("#gsyncScrim");
   let gsiTokenClient=null, gsiTokenClientId=null;
   function waitForGoogleIdentity(ms){
@@ -1090,7 +1093,7 @@
     if(!gsiTokenClient || gsiTokenClientId!==clientId){
       gsiTokenClient=window.google.accounts.oauth2.initTokenClient({
         client_id: clientId,
-        scope: "https://www.googleapis.com/auth/tasks.readonly",
+        scope: "https://www.googleapis.com/auth/tasks",
         callback: ()=>{}
       });
       gsiTokenClientId=clientId;
@@ -1123,9 +1126,9 @@
     gsyncSetStatus("Opening Google sign-in…");
     try{
       const token=await requestGoogleToken(clientId,"consent");
-      const added=await gsyncImport(token);
+      const stats=await gsyncRunSync(token);
       renderGsyncBody();
-      gsyncSetStatus(added>0 ? `Synced — added ${added} new task${added===1?"":"s"}.` : "Synced — nothing new.");
+      gsyncSetStatus(gsyncStatsText(stats));
     }catch(e){
       gsyncSetStatus("Couldn't connect: "+e.message,true);
     }
@@ -1137,41 +1140,112 @@
     if(!silent) gsyncSetStatus("Syncing…");
     try{
       const token=await requestGoogleToken(gs.clientId, silent?"none":"");
-      const added=await gsyncImport(token);
+      const stats=await gsyncRunSync(token);
       if(!silent){
         renderGsyncBody();
-        gsyncSetStatus(added>0 ? `Synced — added ${added} new task${added===1?"":"s"}.` : "Synced — nothing new.");
+        gsyncSetStatus(gsyncStatsText(stats));
       }
     }catch(e){
       if(!silent) gsyncSetStatus("Sync failed: "+e.message+" — try Connect again.",true);
     }
   }
-  // Fetches and imports new Google Tasks; returns how many were added.
-  // Does not touch #gsyncStatus itself — callers decide when it's safe to
-  // show the result without a following renderGsyncBody() wiping it out.
-  async function gsyncImport(token){
+  function queueGoogleCompletion(googleTaskId){
+    if(!googleTaskId) return;
+    const p=state.googleSync.pendingCompletions;
+    if(!p.includes(googleTaskId)) p.push(googleTaskId);
+  }
+  function gsyncStatsText(stats){
+    const parts=[];
+    if(stats.imported) parts.push(`${stats.imported} new`);
+    if(stats.pushed) parts.push(`${stats.pushed} sent`);
+    if(stats.completedRemote) parts.push(`${stats.completedRemote} completed`);
+    if(stats.removedLocal) parts.push(`${stats.removedLocal} cleared`);
+    return parts.length ? "Synced — "+parts.join(", ")+"." : "Synced — nothing new.";
+  }
+  // Runs one full two-way sync pass: flushes queued local completions to
+  // Google, pushes newly-created local tasks to Google, then pulls new
+  // Google tasks in and removes local tasks that were completed/deleted on
+  // the Google side. Does not touch #gsyncStatus itself — callers decide
+  // when it's safe to show the result without a following renderGsyncBody()
+  // wiping it out.
+  async function gsyncRunSync(token){
     const gs=state.googleSync;
-    const res=await fetch("https://tasks.googleapis.com/tasks/v1/lists/@default/tasks?showCompleted=false&maxResults=100",{
-      headers:{Authorization:"Bearer "+token}
-    });
+    const headers={Authorization:"Bearer "+token};
+    const base="https://tasks.googleapis.com/tasks/v1/lists/@default/tasks";
+    const stats={imported:0,pushed:0,completedRemote:0,removedLocal:0};
+
+    // 1. Flush queued completions (from local pops/drops/delegations).
+    const stillPending=[];
+    for(const taskId of gs.pendingCompletions){
+      try{
+        const res=await fetch(base+"/"+encodeURIComponent(taskId),{
+          method:"PATCH",
+          headers:Object.assign({"Content-Type":"application/json"},headers),
+          body:JSON.stringify({status:"completed"})
+        });
+        if(res.ok || res.status===404) stats.completedRemote++;
+        else stillPending.push(taskId);
+      }catch(e){ stillPending.push(taskId); }
+    }
+    gs.pendingCompletions=stillPending;
+
+    // 2. Push local tasks that haven't been created in Google yet.
+    const seen=new Set(gs.importedIds);
+    const tabItems=state.tabs[gs.tabId]||[];
+    for(const item of tabItems){
+      if(item.googleTaskId) continue;
+      const title=(item.text||"").trim();
+      if(!title) continue;
+      try{
+        const res=await fetch(base,{
+          method:"POST",
+          headers:Object.assign({"Content-Type":"application/json"},headers),
+          body:JSON.stringify({title})
+        });
+        if(!res.ok) continue;
+        const created=await res.json();
+        if(created.id){
+          item.googleTaskId=created.id;
+          seen.add(created.id);
+          stats.pushed++;
+        }
+      }catch(e){ /* leave without googleTaskId, retried next sync */ }
+    }
+
+    // 3. Pull: new incomplete Google tasks come in; Google tasks that were
+    // completed/deleted remotely and still exist locally are removed.
+    const res=await fetch(base+"?showCompleted=true&showHidden=true&showDeleted=true&maxResults=100",{headers});
     if(!res.ok) throw new Error("Google Tasks API returned "+res.status);
     const data=await res.json();
     const items=Array.isArray(data.items) ? data.items : [];
-    const seen=new Set(gs.importedIds);
-    let added=0;
+    const byId={};
+    items.forEach(item=>{ if(item.id) byId[item.id]=item; });
+
     items.forEach(item=>{
       if(!item.id || seen.has(item.id)) return;
-      if(item.status==="completed") return;
+      if(item.status==="completed" || item.deleted) return;
       const title=(item.title||"").trim();
       if(!title) return;
       (state.tabs[gs.tabId]=state.tabs[gs.tabId]||[]).push({id:uid(),text:title,createdAt:Date.now(),googleTaskId:item.id});
       seen.add(item.id);
-      added++;
+      stats.imported++;
     });
+
+    const remaining=(state.tabs[gs.tabId]||[]).filter(item=>{
+      if(!item.googleTaskId) return true;
+      const remote=byId[item.googleTaskId];
+      if(remote && (remote.status==="completed" || remote.deleted)){
+        stats.removedLocal++;
+        return false;
+      }
+      return true;
+    });
+    state.tabs[gs.tabId]=remaining;
+
     gs.importedIds=Array.from(seen);
-    if(added>0){ renderTabs(); if(state.active===gs.tabId) renderList(); }
+    if(stats.imported>0 || stats.removedLocal>0 || stats.pushed>0){ renderTabs(); if(state.active===gs.tabId) renderList(); }
     save();
-    return added;
+    return stats;
   }
   function gsyncDisconnect(){
     if(!can("GOOGLE_SYNC")) return;
@@ -1551,7 +1625,10 @@
     const done=()=>{
       const arr=state.tabs[state.active]||[];
       const idx=arr.findIndex(x=>x.id===id);
-      if(idx>-1) arr.splice(idx,1);
+      if(idx>-1){
+        queueGoogleCompletion(arr[idx].googleTaskId);
+        arr.splice(idx,1);
+      }
       renderTabs(); renderList(); save();
     };
     let called=false;
@@ -1645,7 +1722,7 @@
     const items=state.tabs[state.active]||[];
     if(!items.length){ flashEmptyDay(); return; }
     backup(); // keep a copy of the pre-review board
-    lastSnapshot={tab:state.active,items:items.slice(),delegated:state.delegated.slice()};
+    lastSnapshot={tab:state.active,items:items.slice(),delegated:state.delegated.slice(),pendingCompletions:state.googleSync.pendingCompletions.slice()};
     review={queue:items.slice(),idx:0,keep:[],dropped:0,delegated:0};
     reviewScrim.classList.add("show");
     renderReview();
@@ -1701,9 +1778,13 @@
       if(t.dailyGoal) t.dailyGoal.current=0; // fresh day, fresh tally
       review.keep.push(t);
     }
-    else if(action==="drop") review.dropped++;
+    else if(action==="drop"){
+      review.dropped++;
+      queueGoogleCompletion(t.googleTaskId);
+    }
     else if(action==="deleg"){
       review.delegated++;
+      queueGoogleCompletion(t.googleTaskId);
       state.delegated.unshift({id:uid(),text:t.text,tab:state.active,tabLabel:tabLabel(state.active),at:Date.now()});
     }
     review.idx++;
@@ -1713,6 +1794,7 @@
     if(!lastSnapshot) return closeReview();
     state.tabs[lastSnapshot.tab]=lastSnapshot.items.slice();
     state.delegated=lastSnapshot.delegated.slice();
+    state.googleSync.pendingCompletions=lastSnapshot.pendingCompletions.slice();
     lastSnapshot=null;
     renderTabs(); renderList(); renderLogCount(); save();
     closeReview();

@@ -485,7 +485,7 @@
   <div class="foot-inner">
     <button class="btn btn-day" id="newDayBtn">Start a new day</button>
     <button class="btn btn-log" id="logBtn">Delegated <span class="badge" id="logCount">0</span></button>
-    <button class="btn btn-log btn-icon" id="exportBtn" title="Save a backup file">⭳</button>
+    <button class="btn btn-log btn-icon" id="mainSyncBtn" title="Sync Google Tasks now">⟳</button>
     <input type="file" id="importFile" accept="application/json" style="display:none">
     <button class="btn btn-log btn-icon" id="importBtn" title="Load a backup file">⭱</button>
   </div>
@@ -876,6 +876,7 @@
     $("#openHoursBtn").disabled=!can("WORK_HOURS");
     $("#openGoogleSyncBtn").disabled=!can("GOOGLE_SYNC");
     $("#importBtn").disabled=!can("IMPORT");
+    $("#mainSyncBtn").disabled=!can("GOOGLE_SYNC");
     const t=activeTab();
     const dayBtn=$("#newDayBtn");
     dayBtn.disabled = !!(t && t.type!=="goal" && !can("NEW_DAY_REVIEW"));
@@ -1844,17 +1845,29 @@
   };
   goalHistScrim.onclick=e=>{ if(e.target===goalHistScrim) goalHistScrim.classList.remove("show"); };
 
-  /* ---------- export / import (manual cross-device transfer) ---------- */
-  $("#exportBtn").onclick=()=>{
-    const payload=JSON.stringify({tabList:state.tabList,tabs:state.tabs,delegated:state.delegated,goalHistory:state.goalHistory,workHours:state.workHours,googleSync:state.googleSync,exportedAt:Date.now()},null,2);
-    const blob=new Blob([payload],{type:"application/json"});
-    const url=URL.createObjectURL(blob);
-    const a=document.createElement("a");
-    const stamp=new Date().toISOString().slice(0,10);
-    a.href=url; a.download=`poplist-backup-${stamp}.json`;
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(()=>URL.revokeObjectURL(url),2000);
-  };
+  /* ---------- main-page Google Tasks sync button ---------- */
+  // A one-tap shortcut for the same sync the Google Tasks sheet's "Sync now"
+  // does, since sync is foreground-only (no background timer) and burying it
+  // in Manage tabs made it easy to forget after a while away.
+  async function mainPageSync(){
+    if(!can("GOOGLE_SYNC")) return;
+    const gs=state.googleSync;
+    if(!gs.clientId || !gs.tabId){
+      renderGsyncBody();
+      gsyncScrim.classList.add("show");
+      return;
+    }
+    try{
+      const token=await requestGoogleToken(gs.clientId,"");
+      const stats=await gsyncRunSync(token);
+      alert(gsyncStatsText(stats));
+    }catch(e){
+      alert("Sync failed: "+e.message+" — try reconnecting in Manage tabs → Google Tasks.");
+    }
+  }
+  $("#mainSyncBtn").onclick=mainPageSync;
+
+  /* ---------- import (manual cross-device transfer) ---------- */
   $("#importBtn").onclick=()=>$("#importFile").click();
   $("#importFile").addEventListener("change",e=>{
     if(!can("IMPORT")){ e.target.value=""; return; }

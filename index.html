@@ -561,7 +561,7 @@
   <div class="sheet">
     <div class="sheet-head">
       <h2>Google Tasks sync</h2>
-      <p>Pulls new tasks from Google Tasks into a tab here. Runs automatically when it can, but your browser may need you to tap "Sync now" instead of popping up sign-in on its own. One-directional — nothing is ever sent back to Google.</p>
+      <p>Pulls new tasks from Google Tasks into a tab here each time you load or reload Poplist — no automatic background refresh in between. Your browser may need you to tap "Sync now" instead, if it can't refresh silently on load. One-directional — nothing is ever sent back to Google.</p>
     </div>
     <div class="log-body" id="gsyncBody"></div>
     <div class="sheet-foot">
@@ -1811,9 +1811,6 @@
   setInterval(setToday,60000);
   // Daily-goal pacing depends on the clock, so refresh it once a minute.
   setInterval(()=>{ const t=activeTab(); if(t && t.type!=="goal") renderList(); },60000);
-  // Retry Google Tasks sync periodically while the tab stays open — there's
-  // no backend to push to us, so this is the closest thing to "automatic".
-  setInterval(trySilentGoogleSyncIfConfigured,5*60*1000);
 
   function renderWarn(){
     const w=$("#warn");

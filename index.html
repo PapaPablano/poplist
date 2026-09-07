@@ -126,6 +126,7 @@
     font-family:"Nunito",sans-serif;cursor:pointer;transition:background .15s,color .15s,border-color .15s;
   }
   .gs-day.on{background:var(--accent);color:#fff;border-color:transparent;}
+  .gs-days.locked{opacity:.5;pointer-events:none;}
   /* Add row */
   .add{
     display:none;gap:8px;margin:0 0 18px;
@@ -855,7 +856,7 @@
         state.userId=normalizeUserId(sel.value);
         save();
         renderUserSwitcher(); applyAccent(); renderTabs(); renderList();
-        renderGoalSettings(); updateFooter(); updatePlaceholder();
+        renderGoalSettings(); updateFooter(); updatePlaceholder(); renderGsyncBody();
       };
     }
     sel.value=state.userId;
@@ -1073,11 +1074,11 @@
         <label>Sync new Google Tasks into</label>
         <select id="gsyncTabSelect">${taskTabOptionsHtml(gs.tabId)}</select>
       </div>
-      <div class="gsync-status" id="gsyncStatus">${connected ? "Connected. Tap “Sync now”, or it’ll try again automatically next time you open Poplist." : "Not connected yet."}</div>
+      <div class="gsync-status" id="gsyncStatus">${!can("GOOGLE_SYNC") ? "Your current role can't manage Google Tasks sync." : connected ? "Connected. Tap “Sync now”, or it’ll try again automatically next time you open Poplist." : "Not connected yet."}</div>
       <div class="gsync-actions">
-        <button type="button" class="btn btn-solid" id="gsyncConnectBtn">${connected?"Reconnect":"Connect"}</button>
-        <button type="button" class="btn btn-ghost" id="gsyncSyncBtn" ${connected?"":"disabled"}>Sync now</button>
-        <button type="button" class="btn btn-ghost" id="gsyncDisconnectBtn" ${gs.clientId?"":"disabled"}>Disconnect</button>
+        <button type="button" class="btn btn-solid" id="gsyncConnectBtn" ${can("GOOGLE_SYNC")?"":"disabled"}>${connected?"Reconnect":"Connect"}</button>
+        <button type="button" class="btn btn-ghost" id="gsyncSyncBtn" ${connected && can("GOOGLE_SYNC")?"":"disabled"}>Sync now</button>
+        <button type="button" class="btn btn-ghost" id="gsyncDisconnectBtn" ${gs.clientId && can("GOOGLE_SYNC")?"":"disabled"}>Disconnect</button>
       </div>`;
     $("#gsyncConnectBtn").onclick=gsyncConnect;
     $("#gsyncSyncBtn").onclick=()=>gsyncSyncNow(false);
@@ -1130,6 +1131,7 @@
     }
   }
   async function gsyncSyncNow(silent){
+    if(!can("GOOGLE_SYNC")) return;
     const gs=state.googleSync;
     if(!gs.clientId || !gs.tabId) return;
     if(!silent) gsyncSetStatus("Syncing…");
@@ -1227,12 +1229,14 @@
       return;
     }
     daysEl.classList.toggle("open",addRowOpen);
+    daysEl.classList.toggle("locked",!can("EDIT_GOAL_TARGET"));
     const days=["Su","Mo","Tu","We","Th","Fr","Sa"];
     daysEl.innerHTML=days.map((d,i)=>
       `<button type="button" class="gs-day${t.workDays.includes(i)?" on":""}" data-d="${i}">${d}</button>`
     ).join("");
     daysEl.querySelectorAll(".gs-day").forEach(b=>{
       b.onclick=()=>{
+        if(!can("EDIT_GOAL_TARGET")) return;
         const d=parseInt(b.dataset.d,10);
         const idx=t.workDays.indexOf(d);
         if(idx>-1) t.workDays.splice(idx,1); else t.workDays.push(d);

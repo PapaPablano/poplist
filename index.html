@@ -427,6 +427,9 @@
   .task-goal-text{font-size:1rem;line-height:1.35;color:var(--ink);word-break:break-word;}
   .daily-stats{font-size:.82rem;color:var(--ink-faint);text-align:center;}
   .daily-stats b{color:var(--ink);font-weight:800;}
+  /* The count rides on the title line as a smaller aside, instead of taking its own row. */
+  .task-goal-head{display:flex;flex-wrap:wrap;align-items:baseline;column-gap:8px;}
+  .task-goal-head .daily-stats{font-size:.74rem;white-space:nowrap;text-align:left;}
   .daily-pace-row{font-size:.86rem;color:var(--ink-soft);text-align:center;}
   .daily-pace-row b{color:var(--tab-c);font-weight:800;font-family:"Nunito",sans-serif;}
   .daily-pace-note{font-size:.8rem;color:var(--ink-faint);text-align:center;font-style:italic;}
@@ -1510,9 +1513,11 @@
     }
     const pct=g.target>0 ? Math.min(100,(g.current/g.target)*100) : 0;
     return `<div class="body">
-      <div class="task-goal-text">${escapeHtml(it.text)}</div>
+      <div class="task-goal-head">
+        <span class="task-goal-text">${escapeHtml(it.text)}</span>
+        <span class="daily-stats" title="${escapeHtml(g.unit)}"><b>${fmtNum(g.current)}</b>/${fmtNum(g.target)} · ${fmtNum(remaining)} left</span>
+      </div>
       <div class="goal-bar"><div class="goal-fill" style="width:${pct}%"></div></div>
-      <div class="daily-stats"><b>${fmtNum(g.current)}</b>/${fmtNum(g.target)} ${escapeHtml(g.unit)} · ${fmtNum(remaining)} left</div>
       ${paceHtml}
       <div class="goal-current-row">
         <span>Current</span>

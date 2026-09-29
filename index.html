@@ -437,18 +437,45 @@
     .brand{font-size:1.7rem;}
     .wrap{padding-top:16px;}
   }
-  /* Four footer buttons in one row don't fit narrow phones (and foldables
-     like the Z Flip, whose unfolded screen is ~344px wide) — the primary
-     button's label wraps to three or four lines and the last icon button
-     can be pushed off-screen entirely. Give the primary action its own
-     full-width row and let the three secondary actions share the row
-     below, so nothing wraps or clips. 460px covers common tall-phone and
-     foldable-unfolded widths (most phones are narrower than their listed
-     screen size once browser chrome/zoom is factored in). */
-  @media (max-width:460px){
+  /* Phone density: fit more cards on screen. The footer's four buttons
+     overflowed a ~390px row, squeezing "Start a new day" onto several lines
+     and ballooning the whole bar; the header, add row and card gutters were
+     also roomier than a phone needs. Narrower drag/rank/pop gutters give the
+     text more width too, so long tasks wrap onto fewer lines. */
+  @media (max-width:480px){
+    .wrap{padding:14px 12px 110px;}
+    header{margin-bottom:10px;}
+    .tagline{display:none;}
+    .today{margin-top:6px;}
+    .user-switcher{margin-top:6px;}
+    .tabs{padding:2px 2px 6px;margin-bottom:2px;}
+    .ctrl-toggles{margin-bottom:6px;}
+    .add{margin-bottom:12px;}
+    .add input{min-height:44px;padding:10px 14px;}
+    .add button{min-height:44px;}
+    .list{gap:8px;}
+    .handle{width:30px;}
+    .rank{width:26px;}
+    .pop{width:46px;}
+    .body{padding:11px 4px 11px 0;}
+    .bubble.goal .body,.bubble.has-daily-goal .body{padding:9px 8px 9px 0;gap:3px;}
+    .goal-cur-btn{padding:1px 10px;}
+    .foot{padding:8px 12px calc(10px + env(safe-area-inset-bottom));}
+    .foot-inner{gap:8px;}
+    .btn{min-height:46px;padding:0 12px;font-size:.88rem;}
+    .btn-day{white-space:nowrap;}
+    .btn-log{padding:0 10px;gap:6px;white-space:nowrap;}
+    .btn-icon{width:44px;min-height:46px;padding:0;}
+  }
+  /* Very narrow phones and foldables (a Z Flip's unfolded screen is ~344px):
+     four buttons can't share one row without the primary label wrapping or
+     the last icon being pushed off-screen. Give "Start a new day" its own
+     full-width row and let the other three share the row below. */
+  @media (max-width:375px){
     .foot-inner{flex-wrap:wrap;row-gap:8px;}
     .btn-day{flex:1 1 100%;}
-    .wrap{padding-bottom:178px;}
+    .btn-log:not(.btn-icon){flex:1;}
+    .wrap{padding-bottom:150px;}
   }
   /* Compact mode: very short viewports (a phone's small cover display when
      folded, or a browser toolbar eating most of the visible height) leave
@@ -467,8 +494,10 @@
     .foot{padding:8px 16px calc(10px + env(safe-area-inset-bottom));}
     .btn,.btn-icon{min-height:42px;}
   }
-  @media (max-width:460px) and (max-height:560px){
-    .wrap{padding-bottom:158px;}
+  /* The compact block above resets .wrap's bottom padding for short screens;
+     the stacked footer on narrow ones is taller, so give it back. */
+  @media (max-width:375px) and (max-height:560px){
+    .wrap{padding-bottom:132px;}
   }
   @media (prefers-reduced-motion:reduce){
     *{animation-duration:.001ms !important;transition-duration:.05ms !important;}

@@ -114,8 +114,9 @@
     margin:0 0 10px;font-size:.8rem;color:var(--ink-soft);
   }
   .add-toggle{
-    display:flex;align-items:center;gap:7px;background:none;border:none;cursor:pointer;
-    color:var(--ink-soft);font:inherit;font-weight:600;padding:2px;
+    display:flex;align-items:center;gap:7px;cursor:pointer;
+    background:rgba(255,255,255,.7);border:1px solid var(--line);border-radius:999px;
+    color:var(--ink-soft);font:inherit;font-weight:700;padding:6px 12px;min-height:32px;
   }
   .add-toggle:hover{color:var(--ink);}
   .chev{display:inline-block;font-size:.68rem;color:var(--ink-faint);transition:transform .15s;}
@@ -1657,15 +1658,16 @@
   $("#addBtn").onclick=addTask;
   input.addEventListener("keydown",e=>{ if(e.key==="Enter") addTask(); });
 
-  // Goal tabs: the "Working days" toggle expands the day chips (collapsed by
-  // default; its label already shows the summary). The add box itself lives in
+  // Goal tabs: the "Working days" toggle shows/hides the day chips (open by
+  // default; its label always shows the summary). The add box itself lives in
   // the fixed footer and is always available.
-  let addRowOpen=false;
+  let addRowOpen=true;
   const addToggleBtn=$("#addToggle");
   function setAddOpen(open){
     addRowOpen=open;
     addToggleBtn.classList.toggle("open",open);
   }
+  setAddOpen(true);
   addToggleBtn.onclick=()=>{
     setAddOpen(!addRowOpen);
     renderGoalSettings();

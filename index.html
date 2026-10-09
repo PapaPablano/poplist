@@ -57,7 +57,7 @@
   .tagline{color:var(--ink-soft);font-size:.9rem;margin:6px 0 0 26px;}
   .today{color:var(--ink-faint);font-size:.82rem;margin:2px 0 0 26px;letter-spacing:.01em;}
   .user-switcher{
-    display:flex;align-items:center;gap:8px;margin:10px 0 0 26px;font-size:.8rem;color:var(--ink-soft);
+    display:flex;align-items:center;gap:8px;font-size:.8rem;color:var(--ink-soft);
   }
   .user-switcher label{flex:none;white-space:nowrap;}
   .user-switcher select{
@@ -457,7 +457,6 @@
     header{margin-bottom:10px;}
     .tagline{display:none;}
     .today{margin-top:6px;}
-    .user-switcher{margin-top:6px;}
     .tabs{padding:2px 2px 6px;margin-bottom:2px;}
     .ctrl-toggles{margin-bottom:6px;}
     .add input{min-height:44px;padding:10px 14px;}
@@ -504,11 +503,6 @@
     <div class="brand"><span class="dot"></span>Poplist</div>
     <div class="tagline">Pop it when it's done.</div>
     <div class="today" id="today"></div>
-    <div class="user-switcher">
-      <label for="userSelect">Acting as</label>
-      <select id="userSelect"></select>
-      <span class="role-badge" id="roleBadge"></span>
-    </div>
   </header>
 
   <div id="warn"></div>
@@ -579,6 +573,11 @@
       <p>Start a new day, sync, or add, rename, reorder and remove tabs.</p>
     </div>
     <div class="menu-actions" id="menuActions">
+      <div class="user-switcher span2">
+        <label for="userSelect">Acting as</label>
+        <select id="userSelect"></select>
+        <span class="role-badge" id="roleBadge"></span>
+      </div>
       <button class="btn btn-day span2" id="newDayBtn">Start a new day</button>
       <button class="btn btn-log" id="logBtn">Delegated <span class="badge" id="logCount">0</span></button>
       <button class="btn btn-log" id="mainSyncBtn" title="Sync Google Tasks now">⟳ Sync tasks</button>
